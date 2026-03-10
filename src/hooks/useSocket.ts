@@ -22,8 +22,6 @@ interface EvWorkflowCompleted {
   }
 }
 
-const SOCKET_URL = '' // use Vite proxy to target backend
-
 // ── Module-level singleton — lives for the entire app session ─────────────
 let _socket: Socket | null = null
 
@@ -40,14 +38,14 @@ export function initSocket(): Socket {
   const token = localStorage.getItem('access_token')
 
   console.log(
-    '[Socket.IO] 🔌 Connecting →', SOCKET_URL,
+    '[Socket.IO] 🔌 Connecting via Proxy → /socket.io',
     '| token:', token ? `${token.slice(0, 20)}…` : 'NONE'
   )
 
-  const socket = io(SOCKET_URL, {
+  const socket = io({
+    path: '/socket.io',
     transports: ['polling', 'websocket'],   // polling first for handshake (per spec)
     withCredentials: true,
-    autoConnect: true,
     forceNew: true,
     reconnection: true,
     reconnectionAttempts: Infinity,
@@ -69,7 +67,7 @@ export function initSocket(): Socket {
       'color:#16a34a;font-weight:bold;font-size:13px',
       `\n  sid       : ${socket.id}`,
       `\n  transport : ${transport}`,
-      `\n  URL       : ${SOCKET_URL}`
+      `\n  URL       : /socket.io (Vite proxy)`
     )
     s().setConnected(true)
   })
@@ -87,7 +85,7 @@ export function initSocket(): Socket {
       'color:#dc2626;font-weight:bold',
       `\n  message : ${err.message}`,
       `\n  desc    : ${desc?.message ?? JSON.stringify(desc) ?? 'n/a'}`,
-      `\n  URL     : ${SOCKET_URL}`
+      `\n  URL     : /socket.io (Vite proxy)`
     )
     s().setConnected(false)
   })
