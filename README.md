@@ -1,75 +1,52 @@
-# React + TypeScript + Vite
+# Clone-n8n Frontend Development
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is the frontend implementation of exactly cloning an n8n-like UI, built strictly according to `API_FLOW_UI.md` specifications.
 
-Currently, two official plugins are available:
+## 🛠 Technical Stack
+- **Framework:** React 18, Vite, TypeScript (SPA architecture).
+- **Styling:** Tailwind CSS v4 + native CSS variables (Force Light Mode).
+- **UI Components:** Shadcn UI (Radix UI) + custom native HTML equivalents for explicit light colors.
+- **Workflow Engine:** ReactFlow (handling node layouts, dragging constraints, custom `AgentNode`).
+- **State Management:** Zustand (modules: `authStore`, `agentsStore`, `workflowStore`, `socketStore`).
+- **Realtime / Streaming:** Socket.IO Client (`socket.io-client`).
+- **HTTP/Fetch:** Axios with global Interceptors handling auth headers and 401 fallbacks.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🚨 Current Status & Blockers
+**Socket.IO Connection Issue**
+The UI streams workflow activity using Socket.IO via `http://192.168.1.40:8000`. 
 
-## React Compiler
+- **The Issue**: Despite verifying the backend connects perfectly with a standard `curl` or external WS tool (returning `200 OK` with SID and Upgrade requests), the **React Client repeatedly hits `connect_error`**.
+- **Efforts taken**: `useSocket.ts` has been heavily iterated (e.g. `transports: ['polling', 'websocket']`, `withCredentials: true`, `forceNew: true`, passing tokens explicitly in `auth` and `extraHeaders`, bypassing React `StrictMode` by using module-level Singletons).
+- **Next steps**: Another AI or developer needs to analyze `PROJECT_CONTEXT.md` to spot any missing CORS pre-flight, wrong namespace paths, or obscure Vite/Proxy settings blocking the handshake.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 📂 Project Directory Structure
+```text
+src/
+├── api/                   # Axios instance & specific API caller functions
+│   ├── agents.ts          # agent CRUD
+│   ├── auth.ts            # auth/login endpoints
+│   ├── axiosInstance.ts   # Axios setup (Bearer interceptors)
+│   ├── tools.ts           # tool list endpoint
+│   └── workflows.ts       # workflow CRUD + execution triggers
+├── assets/                # Static assets (React/Vite logos)
+├── components/            # React UI Components
+│   ├── ProtectedRoute.tsx # Route wrapper for auth checking
+│   ├── canvas/            # ReactFlow Logic (WorkflowCanvas)
+│   ├── nodes/             # ReactFlow custom node visuals (AgentNode)
+│   ├── sidebar/           # Draggable agents list (AgentSidebar)
+│   ├── streaming/         # Live output UI & modal triggers (RunWorkflowModal, StreamingPanel)
+│   └── ui/                # Shadcn primitives (Card, Button, Dialog, etc.)
+├── hooks/                 # Custom React Hooks
+│   └── useSocket.ts       # Connects Socket.IO, maps backend events to socketStore
+├── store/                 # Zustand state management
+│   ├── agentsStore.ts     # Fetched agents library
+│   ├── authStore.ts       # JWT + User persist
+│   ├── socketStore.ts     # Timeline state for socket streaming (NodeBlock format)
+│   └── workflowStore.ts   # ReactFlow Node/Edge conversion & graph state
+├── types/                 # Universal TypeScript interfaces (matching API Docs)
+├── App.tsx                # React Router & strict route definitions
+├── index.css              # Global styles, Shadcn preset variables & CSS overrides
+└── main.tsx               # App mount tree (NO StrictMode to avoid module singleton double-calls)
 ```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-# n8n-clone
-# n8n-clone
