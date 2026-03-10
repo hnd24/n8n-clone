@@ -22,6 +22,8 @@ interface EvWorkflowCompleted {
   }
 }
 
+import { BASE_URL } from '@/api/axiosInstance'
+
 // ── Module-level singleton — lives for the entire app session ─────────────
 let _socket: Socket | null = null
 
@@ -38,11 +40,11 @@ export function initSocket(): Socket {
   const token = localStorage.getItem('access_token')
 
   console.log(
-    '[Socket.IO] 🔌 Connecting via Proxy → /socket.io',
+    `[Socket.IO] 🔌 Connecting directly to backend: ${BASE_URL}`,
     '| token:', token ? `${token.slice(0, 20)}…` : 'NONE'
   )
 
-  const socket = io({
+  const socket = io(BASE_URL, {
     path: '/socket.io',
     transports: ['polling', 'websocket'],   // polling first for handshake (per spec)
     withCredentials: true,
