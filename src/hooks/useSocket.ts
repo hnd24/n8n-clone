@@ -22,12 +22,12 @@ interface EvWorkflowCompleted {
   }
 }
 
-const SOCKET_URL = 'http://192.168.1.40:8000'
+const SOCKET_URL = '' // use Vite proxy to target backend
 
 // ── Module-level singleton — lives for the entire app session ─────────────
 let _socket: Socket | null = null
 
-function initSocket(): Socket {
+export function initSocket(): Socket {
   if (_socket?.connected || _socket?.active) return _socket
 
   // Cleanup stale socket
@@ -56,8 +56,6 @@ function initSocket(): Socket {
     timeout: 20000,
     // JWT in auth object — server reads from socket.handshake.auth.token
     ...(token ? { auth: { token } } : {}),
-    // Also send in extraHeaders for servers that check HTTP headers
-    ...(token ? { extraHeaders: { Authorization: `Bearer ${token}` } } : {}),
   })
 
   _socket = socket
@@ -149,9 +147,6 @@ function initSocket(): Socket {
 
   return socket
 }
-
-// Init immediately on module import
-initSocket()
 
 // ── React hook — thin wrapper, no lifecycle dependencies ─────────────────
 export const useSocket = () => {

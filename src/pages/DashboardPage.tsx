@@ -4,7 +4,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useWorkflowStore } from '@/store/workflowStore'
 import { useAgentsStore } from '@/store/agentsStore'
 import { useSocketStore } from '@/store/socketStore'
-import { useSocket } from '@/hooks/useSocket'
+import { useSocket, initSocket } from '@/hooks/useSocket'
 import AgentSidebar from '@/components/sidebar/AgentSidebar'
 import WorkflowCanvas from '@/components/canvas/WorkflowCanvas'
 import StreamingPanel from '@/components/streaming/StreamingPanel'
@@ -116,6 +116,11 @@ export default function DashboardPage() {
     logout()
     navigate('/login')
   }
+
+  // Track active/completed nodes from streaming log + init socket
+  useEffect(() => {
+    initSocket() // Connection only starts when dashboard mounts
+  }, [])
 
   // Derive active/completed node IDs from streaming blocks
   const activeNodeIds = blocks.filter((b) => b.status === 'typing').map((b) => b.nodeId)
