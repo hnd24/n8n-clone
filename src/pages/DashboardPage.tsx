@@ -139,20 +139,20 @@ function WorkflowsTab({
               <AlertDialog open={confirmDeleteId === wf.id} onOpenChange={(val) => !val && setConfirmDeleteId(null)}>
                 <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Xóa Workflow</AlertDialogTitle>
+                    <AlertDialogTitle>Delete Workflow</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Bạn có chắc muốn xoá workflow <strong>{wf.name}</strong>? Hành động này không thể hoàn tác.
+                      Are you sure you want to delete <strong>{wf.name}</strong>? This action cannot be undone.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel disabled={deleteWorkflowMutation.isPending}>Hủy</AlertDialogCancel>
+                    <AlertDialogCancel disabled={deleteWorkflowMutation.isPending}>Cancel</AlertDialogCancel>
                     <Button
                       variant="destructive"
                       disabled={deleteWorkflowMutation.isPending}
                       onClick={async (e) => {
                         e.preventDefault()
                         e.stopPropagation()
-                        const toastId = toast.loading('Đang xoá workflow...')
+                        const toastId = toast.loading('Deleting workflow...')
                         try {
                           await deleteWorkflowMutation.mutateAsync(wf.id)
                           toast.dismiss(toastId)
@@ -164,7 +164,7 @@ function WorkflowsTab({
                       }}
                     >
                       {deleteWorkflowMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-                      Xóa
+                      Delete
                     </Button>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -236,10 +236,10 @@ export default function DashboardPage() {
 
     // Build the injection block
     const injectionBlock = [
-      '\n\n[SYSTEM INFO - được inject tự động bởi Frontend khi chạy workflow]',
-      'Danh sách Agent ID chính xác để sử dụng trong trường "next_agents" của routing decision JSON:',
+      '\n\n[SYSTEM INFO - automatically injected by Frontend during workflow execution]',
+      'Exact List of Agent IDs to use in the "next_agents" field of the routing decision JSON:',
       ...downstream.map((a) => `- ${a.name}: "${a.id}"`),
-      '\nLƯU Ý QUAN TRỌNG: Phải dùng đúng UUID ở trên, KHÔNG dùng tên agent.',
+      '\nIMPORTANT WARNING: You MUST use the exact UUIDs above, DO NOT use agent names.',
       '[/SYSTEM INFO]',
     ].join('\n')
 

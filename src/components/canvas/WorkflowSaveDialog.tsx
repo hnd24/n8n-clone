@@ -46,7 +46,7 @@ export default function WorkflowSaveDialog({ open, onOpenChange, orderedAgents }
 
   const handleSave = async () => {
     if (!localName.trim()) {
-      toast.error('Lỗi', { description: 'Tên Workflow không được để trống.' })
+      toast.error('Error', { description: 'Workflow Name cannot be empty.' })
       return
     }
 
@@ -58,14 +58,14 @@ export default function WorkflowSaveDialog({ open, onOpenChange, orderedAgents }
             payload: { steps, name: localName, is_public: localIsPublic }
           }),
           {
-            loading: 'Đang cập nhật Workflow...',
+            loading: 'Updating workflow...',
             success: () => {
               setWorkflowName(localName)
               setIsPublic(localIsPublic)
               onOpenChange(false)
-              return 'Đã cập nhật Workflow thành công'
+              return 'Workflow updated successfully'
             },
-            error: 'Lỗi khi cập nhật Workflow'
+            error: 'Error updating workflow'
           }
         )
       } else {
@@ -76,13 +76,13 @@ export default function WorkflowSaveDialog({ open, onOpenChange, orderedAgents }
             is_public: localIsPublic,
           }),
           {
-            loading: 'Đang tạo Workflow mới...',
+            loading: 'Creating new workflow...',
             success: (wf) => {
               selectWorkflow(wf) // Set the newly created workflow as selected so subsequent saves will update it
               onOpenChange(false)
-              return 'Đã lưu Workflow mới thành công'
+              return 'New workflow saved successfully'
             },
-            error: 'Lỗi khi lưu Workflow'
+            error: 'Error saving workflow'
           }
         )
       }
@@ -95,20 +95,20 @@ export default function WorkflowSaveDialog({ open, onOpenChange, orderedAgents }
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Lưu Workflow</DialogTitle>
+          <DialogTitle>Save Workflow</DialogTitle>
           <DialogDescription>
-            Đặt tên và quản lý quyền truy cập cho Workflow của bạn.
+            Name your workflow and manage access permissions.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="workflow-name" className="text-right">
-              Tên Workflow <span className="text-red-500">*</span>
+              Workflow Name <span className="text-red-500">*</span>
             </Label>
             <Input
               id="workflow-name"
-              placeholder="Ví dụ: AI Content Generator"
+              placeholder="e.g.: AI Content Generator"
               value={localName}
               onChange={(e) => setLocalName(e.target.value)}
               className="col-span-3"
@@ -118,9 +118,9 @@ export default function WorkflowSaveDialog({ open, onOpenChange, orderedAgents }
 
           <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
             <div className="space-y-0.5">
-              <Label className="text-base">Mức độ truy cập</Label>
+              <Label className="text-base">Access Level</Label>
               <div className="text-xs text-muted-foreground">
-                {localIsPublic ? 'Mọi người trong hệ thống đều có thể xem' : 'Chỉ mình bạn có thể thấy'}
+                {localIsPublic ? 'Anyone in the workspace can view' : 'Only you can view'}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -134,10 +134,10 @@ export default function WorkflowSaveDialog({ open, onOpenChange, orderedAgents }
           </div>
 
           <div className="space-y-2 pt-2">
-            <Label>Chuỗi Agent thực thi ({orderedAgents.length} bước)</Label>
+            <Label>Execution Pipeline ({orderedAgents.length} steps)</Label>
             <ScrollArea className="h-[120px] rounded-md border p-4 bg-gray-50/50">
               {orderedAgents.length === 0 ? (
-                <div className="text-sm text-gray-500 text-center py-4">Canvas hiện chưa có Agent nào.</div>
+                <div className="text-sm text-gray-500 text-center py-4">No agents placed on the canvas yet.</div>
               ) : (
                 <div className="space-y-3">
                   {orderedAgents.map((agent, index) => (
@@ -161,10 +161,10 @@ export default function WorkflowSaveDialog({ open, onOpenChange, orderedAgents }
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>Hủy</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>Cancel</Button>
           <Button onClick={handleSave} disabled={isPending || orderedAgents.length === 0}>
             {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <WorkflowIcon className="mr-2 h-4 w-4" />}
-            Xác nhận lưu
+            Confirm Save
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -22,6 +22,9 @@ import { nodeTypes } from '@/components/nodes/nodeTypes'
 import type { Agent } from '@/types'
 import { Save, Trash2, Play, GitBranch } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import WorkflowSaveDialog from './WorkflowSaveDialog'
 
@@ -131,7 +134,7 @@ function CanvasInner({
       .filter((agent): agent is Agent => Boolean(agent?.id))
 
     if (orderedAgents.length === 0) {
-      toast.error('Workflow trống', { description: 'Vui lòng thêm ít nhất 1 Agent vào Canvas trước khi lưu.' })
+      toast.error('Empty Workflow', { description: 'Please add at least 1 Agent to the Canvas before saving.' })
       return
     }
 
@@ -185,13 +188,33 @@ function CanvasInner({
           style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}
         />
 
-        {/* Toolbar */}
-        <Panel position="top-right" className="flex gap-2">
+        {/* Left Toolbar: Metadata */}
+        <Panel position="top-left" className="flex items-center gap-4 bg-white/90 backdrop-blur-sm p-2 rounded-xl border border-gray-200 shadow-sm ml-4 mt-4 pointer-events-auto">
+          <Input 
+            value={workflowName} 
+            onChange={(e) => setWorkflowName(e.target.value)}
+            placeholder="Enter workflow name..."
+            className="w-64 h-8 text-sm focus-visible:ring-1 focus-visible:ring-violet-400 bg-white"
+          />
+          <div className="flex items-center gap-2 border-l border-gray-200 pl-4 pr-2">
+            <Switch 
+              id="public-access-switch"
+              checked={isPublic} 
+              onCheckedChange={setIsPublic}
+            />
+            <Label htmlFor="public-access-switch" className="text-sm font-medium text-gray-700 cursor-pointer whitespace-nowrap">
+              Public Access
+            </Label>
+          </div>
+        </Panel>
+
+        {/* Right Toolbar: Actions */}
+        <Panel position="top-right" className="flex items-center gap-2 bg-white/90 backdrop-blur-sm p-2 rounded-xl border border-gray-200 shadow-sm mr-4 mt-4 pointer-events-auto">
           {onRunWorkflow && nodes.length > 0 && (
             <Button
               id="run-workflow-btn"
               onClick={onRunWorkflow}
-              className="h-8 px-3 text-xs bg-violet-600 hover:bg-violet-700 text-white shadow-md"
+              className="h-8 px-3 text-xs bg-violet-600 hover:bg-violet-700 text-white shadow-sm"
             >
               <Play className="w-3.5 h-3.5 mr-1.5" /> Run
             </Button>
@@ -201,7 +224,7 @@ function CanvasInner({
               id="save-workflow-btn"
               variant="default"
               onClick={handleSaveClick}
-              className="h-8 px-3 text-xs shadow-md bg-zinc-900 hover:bg-zinc-800"
+              className="h-8 px-3 text-xs shadow-sm bg-zinc-900 hover:bg-zinc-800"
             >
               <Save className="w-3.5 h-3.5 mr-1.5" /> Save Workflow
             </Button>
@@ -210,7 +233,7 @@ function CanvasInner({
             <Button
               variant="outline"
               onClick={clearCanvas}
-              className="h-8 px-3 text-xs text-gray-500 hover:text-red-600 hover:border-red-300 shadow-sm"
+              className="h-8 px-3 text-xs text-gray-500 hover:text-red-600 hover:border-red-300 hover:bg-red-50 shadow-sm"
             >
               <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Clear
             </Button>

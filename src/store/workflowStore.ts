@@ -130,10 +130,13 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   loadWorkflowToCanvas: (workflow, agents) => {
     if (!workflow?.steps?.length) {
       set({ nodes: [], edges: [], selectedWorkflow: workflow, workflowName: workflow?.name || 'Untitled Workflow', isPublic: workflow?.is_public || false })
+      nodeCounter = 0
       return
     }
+    const stepsLength = workflow.steps.length
     get().setNodesFromSteps(workflow.steps, agents ?? [])
     set({ selectedWorkflow: workflow, workflowName: workflow.name, isPublic: workflow.is_public || false })
+    nodeCounter = stepsLength
   },
 
   clearCanvas: () => {
