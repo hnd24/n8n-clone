@@ -6,7 +6,13 @@
  * UI grouping: timeline of NodeBlock items, each containing:
  *   - Agent name + turn
  *   - Accumulated chunk text
- *   - Status: 'typing' | 'done'
+ *   - Status: 'pending' | 'typing' | 'done'
+ *
+ * Fuzzy ID resolution:
+ *   The backend AI sometimes emits an agent's *name* instead of its UUID
+ *   as the node_id field. All mutating actions call resolveNodeId() first,
+ *   which falls back to matching by agentName when the incoming ID is not
+ *   a valid UUID. This prevents nodes from getting permanently stuck.
  */
 import { create } from 'zustand'
 
@@ -64,6 +70,42 @@ interface SocketState {
   clearLog: () => void
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** Returns true when the string looks like a standard UUID v4 */
+const isUUID = (s: string) => UUID_RE.test(s)
+
+/**
+ * Fuzzy node ID resolver.
+ *
+ * If `incoming` is already a valid UUID, return it unchanged.
+ * Otherwise, the backend AI sent an agent name instead of an ID — scan the
+ * existing blocks and return the nodeId of the first block whose agentName
+ * matches (case-insensitive) the incoming string.
+ * Falls back to the original string so the caller can still create a block.
+ */
+const resolveNodeId = (incoming: string, blocks: NodeBlock[]): string => {
+  if (isUUID(incoming)) return incoming
+
+  // Fuzzy: find by agent name match
+  const lower = incoming.toLowerCase().replace(/\s+/g, '')
+  const found = blocks.find(
+    (b) => b.agentName.toLowerCase().replace(/\s+/g, '') === lower
+  )
+  if (found) {
+    console.warn(
+      `[socketStore] Fuzzy ID match: "${incoming}" → "${found.nodeId}" (${found.agentName})`
+    )
+    return found.nodeId
+  }
+
+  // Nothing matched — use incoming as-is (openNodeBlock will create a new block)
+  console.warn(`[socketStore] Non-UUID node_id received and no match: "${incoming}"`)
+  return incoming
+}
+
 // ── Store ─────────────────────────────────────────────────────────────────
 
 export const useSocketStore = create<SocketState>((set, get) => ({
@@ -79,13 +121,15 @@ export const useSocketStore = create<SocketState>((set, get) => ({
   setCurrentNodeId: (id) => set({ currentNodeId: id }),
 
   openNodeBlock: (nodeId, turn) => {
-    const existing = get().blocks.find((b) => b.nodeId === nodeId)
-    if (existing) return  // already open (e.g. duplicate event)
+    const { blocks } = get()
+    const resolved = resolveNodeId(nodeId, blocks)
+    const existing = blocks.find((b) => b.nodeId === resolved)
+    if (existing) return  // already open (duplicate event)
     set((s) => ({
       blocks: [
         ...s.blocks,
         {
-          nodeId,
+          nodeId: resolved,
           agentName: '',
           turn,
           text: '',
@@ -96,9 +140,10 @@ export const useSocketStore = create<SocketState>((set, get) => ({
   },
 
   setAgentTyping: (nodeId, agentName) => {
+    const resolved = resolveNodeId(nodeId, get().blocks)
     set((s) => ({
       blocks: s.blocks.map((b) =>
-        b.nodeId === nodeId
+        b.nodeId === resolved
           ? { ...b, agentName, status: 'typing' as NodeBlockStatus }
           : b
       ),
@@ -106,15 +151,15 @@ export const useSocketStore = create<SocketState>((set, get) => ({
   },
 
   appendChunk: (nodeId, chunk) => {
-    // Batch state update — find block by nodeId, append text
     set((s) => {
-      const idx = s.blocks.findIndex((b) => b.nodeId === nodeId)
+      const resolved = resolveNodeId(nodeId, s.blocks)
+      const idx = s.blocks.findIndex((b) => b.nodeId === resolved)
       if (idx === -1) {
-        // Block not yet opened (race condition) — create it
+        // Race condition — create block on the fly
         return {
           blocks: [
             ...s.blocks,
-            { nodeId, agentName: '', turn: 0, text: chunk, status: 'typing' as NodeBlockStatus },
+            { nodeId: resolved, agentName: '', turn: 0, text: chunk, status: 'typing' as NodeBlockStatus },
           ],
         }
       }
@@ -125,9 +170,10 @@ export const useSocketStore = create<SocketState>((set, get) => ({
   },
 
   closeAgentBlock: (nodeId, agentName) => {
+    const resolved = resolveNodeId(nodeId, get().blocks)
     set((s) => ({
       blocks: s.blocks.map((b) =>
-        b.nodeId === nodeId
+        b.nodeId === resolved
           ? { ...b, agentName: agentName || b.agentName, status: 'done' as NodeBlockStatus, completedAt: Date.now() }
           : b
       ),
@@ -135,10 +181,10 @@ export const useSocketStore = create<SocketState>((set, get) => ({
   },
 
   closeNodeBlock: (nodeId, _turn) => {
-    // Already handled by closeAgentBlock, just ensure status is done
+    const resolved = resolveNodeId(nodeId, get().blocks)
     set((s) => ({
       blocks: s.blocks.map((b) =>
-        b.nodeId === nodeId && b.status !== 'done'
+        b.nodeId === resolved && b.status !== 'done'
           ? { ...b, status: 'done' as NodeBlockStatus, completedAt: Date.now() }
           : b
       ),
@@ -146,7 +192,7 @@ export const useSocketStore = create<SocketState>((set, get) => ({
   },
 
   setWorkflowCompleted: (finalAnswer) => {
-    set({ result: { finalAnswer, completedAt: Date.now() }, isStreaming: false })
+    set({ result: { finalAnswer, completedAt: Date.now() }, isStreaming: false, currentNodeId: null })
   },
 
   addError: (msg) => set({ error: msg, isStreaming: false }),

@@ -42,25 +42,22 @@ export function initSocket(): Socket {
     throw new Error('Socket.IO BASE_URL is required')
   }
 
-  const token = localStorage.getItem('access_token')
-
-  console.log(
-    `[Socket.IO] 🔌 Connecting directly to: ${BASE_URL}`,
-    '| token:', token ? `${token.slice(0, 20)}…` : 'NONE'
-  )
+  console.log(`[Socket.IO] 🔌 Connecting to: ${BASE_URL} (no auth — backend handles open connections)`)
 
   const socket = io(BASE_URL, {
     path: '/socket.io',
-    transports: ['polling', 'websocket'],   // polling first for handshake (per spec)
-    withCredentials: true,
+    // websocket-only: avoids polling handshake issues through Vite/WSL2 proxies.
+    // Python reference test (full_workflow_socketio_test.py) uses websocket by default.
+    transports: ['websocket'],
     forceNew: true,
     reconnection: true,
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1500,
     reconnectionDelayMax: 10000,
     timeout: 20000,
-    // JWT in auth object — server reads from socket.handshake.auth.token
-    ...(token ? { auth: { token } } : {}),
+    // NO auth object — backend connect(sid, environ) does not accept an auth param.
+    // Passing auth causes python-socketio to throw TypeError internally and silently
+    // drop the connection. JWT is only needed for REST API calls (via axiosInstance).
   })
 
   _socket = socket
