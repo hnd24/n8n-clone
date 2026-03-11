@@ -1,11 +1,20 @@
+/**
+ * agentsStore.ts — Minimal canvas-drag state
+ *
+ * Data fetching (agent list, loading states, errors) has been moved to
+ * React Query hooks in src/hooks/queries/useAgentQueries.ts.
+ * This store only serves as a thin cache if components need to share
+ * agent data across the component tree without prop-drilling.
+ * Prefer using `useAgents()` from the query hooks directly.
+ */
 import { create } from 'zustand'
 import type { Agent, CreateAgentPayload } from '@/types'
-import { getAgentsApi, createAgentApi, deleteAgentApi } from '@/api/agents'
+import { createAgentApi, deleteAgentApi } from '@/api/agents'
 
 interface AgentsState {
+  /** @deprecated Use useAgents() query hook instead */
   agents: Agent[]
-  isLoading: boolean
-  error: string | null
+  /** @deprecated Use useAgents() query hook instead */
   fetchAgents: () => Promise<void>
   createAgent: (payload: CreateAgentPayload) => Promise<Agent>
   deleteAgent: (agentId: string) => Promise<void>
@@ -13,18 +22,12 @@ interface AgentsState {
 
 export const useAgentsStore = create<AgentsState>((set, get) => ({
   agents: [],
-  isLoading: false,
-  error: null,
 
+  // Kept for legacy callers; React Query is now the source of truth
   fetchAgents: async () => {
-    set({ isLoading: true, error: null })
-    try {
-      const agents = await getAgentsApi()
-      set({ agents, isLoading: false })
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch agents'
-      set({ error: message, isLoading: false })
-    }
+    const { getAgentsApi } = await import('@/api/agents')
+    const agents = await getAgentsApi()
+    set({ agents })
   },
 
   createAgent: async (payload: CreateAgentPayload) => {

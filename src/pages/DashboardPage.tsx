@@ -2,14 +2,14 @@ import { useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { useWorkflowStore } from '@/store/workflowStore'
-import { useAgentsStore } from '@/store/agentsStore'
 import { useSocketStore } from '@/store/socketStore'
 import { useSocket, initSocket } from '@/hooks/useSocket'
+import { useWorkflows, useCreateWorkflow } from '@/hooks/queries/useWorkflowQueries'
+import { useAgents } from '@/hooks/queries/useAgentQueries'
 import AgentSidebar from '@/components/sidebar/AgentSidebar'
 import WorkflowCanvas from '@/components/canvas/WorkflowCanvas'
 import StreamingPanel from '@/components/streaming/StreamingPanel'
 import RunWorkflowModal from '@/components/streaming/RunWorkflowModal'
-import { createWorkflowApi } from '@/api/workflows'
 import type { Workflow, Agent } from '@/types'
 import { Workflow as WorkflowIcon, LogOut, Play, ChevronLeft, ChevronRight, GitBranch, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -20,16 +20,11 @@ function WorkflowsTab({
 }: {
   onLoadWorkflow: (wf: Workflow, agents: Agent[]) => void
 }) {
-  const { workflows, isLoading, fetchWorkflows } = useWorkflowStore()
-  const { agents, fetchAgents } = useAgentsStore()
-
-  // Fetch both workflows AND agents when this tab is shown
-  useEffect(() => {
-    fetchWorkflows()
-    fetchAgents()
-  }, [fetchWorkflows, fetchAgents])
+  const { data: workflows = [], isLoading: wfLoading } = useWorkflows()
+  const { data: agents = [], isLoading: agentsLoading } = useAgents()
 
   const agentMap = new Map<string, string>(agents.map((a) => [a.id, a.name]))
+  const isLoading = wfLoading || agentsLoading
 
   if (isLoading) {
     return (
@@ -103,6 +98,7 @@ export default function DashboardPage() {
   const { nodes } = useWorkflowStore()
   const { blocks } = useSocketStore()
   const { emitWorkflowChat } = useSocket()
+  const createWorkflow = useCreateWorkflow()
   const navigate = useNavigate()
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -136,13 +132,12 @@ export default function DashboardPage() {
     if (steps.length === 0) return
 
     try {
-      const wf = await createWorkflowApi({
+      const wf = await createWorkflow.mutateAsync({
         name: `Workflow ${new Date().toLocaleTimeString()}`,
         steps,
         is_public: false,
       })
       setSavedWorkflow(wf)
-      // Show a brief notification
       console.log('[Dashboard] Workflow saved:', wf.id)
     } catch (err) {
       console.error('[Dashboard] Save workflow failed:', err)
@@ -169,14 +164,14 @@ export default function DashboardPage() {
 
       if (steps.length === 0) return
 
-      createWorkflowApi({ name: `Run-${Date.now()}`, steps, is_public: false })
+      createWorkflow.mutateAsync({ name: `Run-${Date.now()}`, steps, is_public: false })
         .then((wf) => {
           setSavedWorkflow(wf)
           emitWorkflowChat(wf.id, message)
         })
         .catch(console.error)
     },
-    [savedWorkflow, emitWorkflowChat]
+    [savedWorkflow, emitWorkflowChat, createWorkflow]
   )
 
   // Load workflow onto canvas and switch to canvas tab

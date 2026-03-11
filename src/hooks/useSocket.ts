@@ -47,7 +47,6 @@ export function initSocket(): Socket {
   const socket = io(BASE_URL, {
     path: '/socket.io',
     transports: ['polling', 'websocket'],   // polling first for handshake (per spec)
-    withCredentials: true,
     forceNew: true,
     reconnection: true,
     reconnectionAttempts: Infinity,

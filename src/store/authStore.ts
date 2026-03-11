@@ -6,7 +6,10 @@ import { loginApi } from '@/api/auth'
 interface AuthState {
   user: User | null
   token: string | null
+  /** Strictly true only when token is present — derived on rehydration */
   isAuthenticated: boolean
+  /** True after Zustand persist has finished rehydrating from localStorage */
+  isRehydrated: boolean
   isLoading: boolean
   error: string | null
   login: (email: string, password: string) => Promise<void>
@@ -20,6 +23,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isAuthenticated: false,
+      isRehydrated: false,
       isLoading: false,
       error: null,
 
@@ -55,12 +59,25 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         localStorage.removeItem('access_token')
         localStorage.removeItem('user')
+        localStorage.removeItem('auth-storage')
         set({ user: null, token: null, isAuthenticated: false })
       },
     }),
     {
       name: 'auth-storage',
-      partialize: (state) => ({ user: state.user, token: state.token, isAuthenticated: state.isAuthenticated }),
+      // Only persist these fields; isRehydrated is always reset to false on fresh load
+      partialize: (state) => ({
+        user: state.user,
+        token: state.token,
+        isAuthenticated: Boolean(state.token), // strictly derived from token presence
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          // Enforce: isAuthenticated must be backed by a real token
+          state.isAuthenticated = Boolean(state.token)
+          state.isRehydrated = true
+        }
+      },
     }
   )
 )
