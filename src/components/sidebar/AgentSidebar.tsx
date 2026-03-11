@@ -12,6 +12,18 @@ import { Plus, Search, GripVertical, Bot, RefreshCw, Pencil, Trash2, Loader2 } f
 import { useWorkflowStore } from '@/store/workflowStore'
 import { useAgents, useDeleteAgent } from '@/hooks/queries/useAgentQueries'
 import AgentFormModal from '@/components/agents/AgentFormModal'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
 import type { Agent } from '@/types'
 import { cn } from '@/lib/utils'
 
@@ -48,8 +60,15 @@ export default function AgentSidebar() {
   }
 
   const handleDelete = async (id: string) => {
-    await deleteAgent.mutateAsync(id)
-    setConfirmDeleteId(null)
+    const toastId = toast.loading('Đang xoá agent...')
+    try {
+      await deleteAgent.mutateAsync(id)
+      toast.dismiss(toastId)
+      setConfirmDeleteId(null)
+    } catch (error) {
+      toast.dismiss(toastId)
+      // Error toast managed by the hook
+    }
   }
 
   return (
@@ -175,12 +194,7 @@ function AgentCard({
     <div
       draggable={!confirmDelete}
       onDragStart={(e) => onDragStart(e, agent)}
-      className={cn(
-        'group relative flex flex-col gap-1.5 p-3 rounded-xl border bg-white transition-all duration-150 shadow-sm',
-        confirmDelete
-          ? 'border-red-300 bg-red-50'
-          : 'border-gray-200 hover:border-violet-300 hover:bg-violet-50 hover:shadow cursor-grab active:cursor-grabbing',
-      )}
+      className="group relative flex flex-col gap-1.5 p-3 rounded-xl border border-gray-200 bg-white hover:border-violet-300 hover:bg-violet-50 hover:shadow cursor-grab active:cursor-grabbing transition-all duration-150 shadow-sm"
     >
       {/* Top row: grip + name + action buttons */}
       <div className="flex items-start gap-2">
@@ -234,26 +248,31 @@ function AgentCard({
         )}
       </div>
 
-      {/* Confirm delete bar */}
-      {confirmDelete && (
-        <div className="flex items-center gap-2 pt-1 border-t border-red-200">
-          <p className="text-[11px] text-red-600 flex-1">Delete this agent?</p>
-          <button
-            onClick={onDeleteCancel}
-            className="px-2 py-0.5 text-[11px] rounded border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onDeleteConfirm}
-            disabled={isDeleting}
-            className="flex items-center gap-1 px-2 py-0.5 text-[11px] rounded bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-60"
-          >
-            {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-            Delete
-          </button>
-        </div>
-      )}
+      {/* Confirm delete dialog (shadcn) */}
+      <AlertDialog open={confirmDelete} onOpenChange={(val) => !val && onDeleteCancel()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Agent</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{agent.name}</strong>? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={isDeleting}
+              onClick={(e) => {
+                e.preventDefault()
+                onDeleteConfirm()
+              }}
+            >
+              {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+              Delete
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

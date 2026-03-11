@@ -13,6 +13,18 @@ import StreamingPanel from '@/components/streaming/StreamingPanel'
 import RunWorkflowModal from '@/components/streaming/RunWorkflowModal'
 import type { Workflow, Agent } from '@/types'
 import { Workflow as WorkflowIcon, LogOut, Play, ChevronLeft, ChevronRight, GitBranch, Loader2, Trash2 } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
 // ─── Workflows Tab ────────────────────────────────────────────────────────
@@ -24,6 +36,8 @@ function WorkflowsTab({
   const { data: workflows = [], isLoading: wfLoading } = useWorkflows()
   const { data: agents = [], isLoading: agentsLoading } = useAgents()
   const deleteWorkflow = useDeleteWorkflow()
+
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   const agentMap = new Map<string, string>(agents.map((a) => [a.id, a.name]))
   const isLoading = wfLoading || agentsLoading
@@ -71,9 +85,7 @@ function WorkflowsTab({
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  if (confirm('Bạn có chắc muốn xoá workflow này?')) {
-                    deleteWorkflow.mutateAsync(wf.id)
-                  }
+                  setConfirmDeleteId(wf.id)
                 }}
                 className="ml-2 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100"
                 title="Delete Workflow"
@@ -82,6 +94,41 @@ function WorkflowsTab({
               </button>
             </div>
           </div>
+          
+          {/* AlertDialog for this specific workflow */}
+          <AlertDialog open={confirmDeleteId === wf.id} onOpenChange={(val) => !val && setConfirmDeleteId(null)}>
+            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Xóa Workflow</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Bạn có chắc muốn xoá workflow <strong>{wf.name}</strong>? Hành động này không thể hoàn tác.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleteWorkflow.isPending}>Hủy</AlertDialogCancel>
+                <Button
+                  variant="destructive"
+                  disabled={deleteWorkflow.isPending}
+                  onClick={async (e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    const toastId = toast.loading('Đang xoá workflow...')
+                    try {
+                      await deleteWorkflow.mutateAsync(wf.id)
+                      toast.dismiss(toastId)
+                      setConfirmDeleteId(null)
+                    } catch (error) {
+                      toast.dismiss(toastId)
+                      // error toast already handled by useDeleteWorkflow hook
+                    }
+                  }}
+                >
+                  {deleteWorkflow.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                  Xóa
+                </Button>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           {/* Step pipeline visualization */}
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -192,20 +239,36 @@ export default function DashboardPage() {
 
     try {
       if (savedWorkflow) {
-        const wf = await updateWorkflow.mutateAsync({
-          id: savedWorkflow.id,
-          payload: { steps, name: savedWorkflow.name }
-        })
-        setSavedWorkflow(wf)
-        console.log('[Dashboard] Workflow updated:', wf.id)
+        toast.promise(
+          updateWorkflow.mutateAsync({
+            id: savedWorkflow.id,
+            payload: { steps, name: savedWorkflow.name }
+          }),
+          {
+            loading: 'Đang lưu cập nhật Workflow...',
+            success: (wf) => {
+              setSavedWorkflow(wf)
+              return `Đã cập nhật Workflow "${wf.name}"`
+            },
+            error: 'Lỗi khi cập nhật Workflow'
+          }
+        )
       } else {
-        const wf = await createWorkflow.mutateAsync({
-          name: `Workflow ${new Date().toLocaleTimeString()}`,
-          steps,
-          is_public: false,
-        })
-        setSavedWorkflow(wf)
-        console.log('[Dashboard] Workflow saved:', wf.id)
+        toast.promise(
+          createWorkflow.mutateAsync({
+            name: `Workflow ${new Date().toLocaleTimeString()}`,
+            steps,
+            is_public: false,
+          }),
+          {
+            loading: 'Đang tạo Workflow...',
+            success: (wf) => {
+              setSavedWorkflow(wf)
+              return `Đã lưu Workflow "${wf.name}" thành công`
+            },
+            error: 'Lỗi khi lưu Workflow'
+          }
+        )
       }
     } catch (err) {
       console.error('[Dashboard] Save workflow failed:', err)

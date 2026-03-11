@@ -21,6 +21,7 @@ import { useWorkflowStore } from '@/store/workflowStore'
 import { nodeTypes } from '@/components/nodes/nodeTypes'
 import type { Agent } from '@/types'
 import { Save, Trash2, Play, GitBranch } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface WorkflowCanvasProps {
   onSaveWorkflow?: (nodes: Node[], edges: Edge[]) => void
@@ -150,30 +151,32 @@ function CanvasInner({
         {/* Toolbar */}
         <Panel position="top-right" className="flex gap-2">
           {onRunWorkflow && nodes.length > 0 && (
-            <button
+            <Button
               id="run-workflow-btn"
               onClick={onRunWorkflow}
-              className="flex items-center gap-1.5 px-3 h-8 text-xs font-semibold rounded-lg bg-violet-600 hover:bg-violet-700 text-white shadow-md transition-colors"
+              className="h-8 px-3 text-xs bg-violet-600 hover:bg-violet-700 text-white shadow-md"
             >
-              <Play className="w-3.5 h-3.5" /> Run
-            </button>
+              <Play className="w-3.5 h-3.5 mr-1.5" /> Run
+            </Button>
           )}
           {onSaveWorkflow && nodes.length > 0 && (
-            <button
+            <Button
               id="save-workflow-btn"
+              variant="default"
               onClick={() => onSaveWorkflow(nodes, edges)}
-              className="flex items-center gap-1.5 px-3 h-8 text-xs font-medium rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 shadow-sm transition-colors"
+              className="h-8 px-3 text-xs shadow-md"
             >
-              <Save className="w-3.5 h-3.5" /> Save
-            </button>
+              <Save className="w-3.5 h-3.5 mr-1.5" /> Save Workflow
+            </Button>
           )}
           {nodes.length > 0 && (
-            <button
+            <Button
+              variant="outline"
               onClick={clearCanvas}
-              className="flex items-center gap-1.5 px-3 h-8 text-xs font-medium rounded-lg border border-gray-300 bg-white hover:border-red-300 hover:text-red-600 text-gray-500 shadow-sm transition-colors"
+              className="h-8 px-3 text-xs text-gray-500 hover:text-red-600 hover:border-red-300 shadow-sm"
             >
-              <Trash2 className="w-3.5 h-3.5" /> Clear
-            </button>
+              <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Clear
+            </Button>
           )}
         </Panel>
 
