@@ -34,7 +34,7 @@ export function useWorkflows() {
   return useQuery({
     queryKey: WORKFLOWS_KEY,
     queryFn: getWorkflowsApi,
-    meta: { errorMessage: 'Không thể tải danh sách workflow' },
+    meta: { errorMessage: 'Failed to load workflows' },
   })
 }
 
@@ -43,7 +43,7 @@ export function useWorkflow(id: string) {
     queryKey: [...WORKFLOWS_KEY, id],
     queryFn: () => getWorkflowApi(id),
     enabled: Boolean(id),
-    meta: { errorMessage: 'Không thể tải workflow' },
+    meta: { errorMessage: 'Failed to load workflow' },
   })
 }
 
@@ -53,13 +53,13 @@ export function useCreateWorkflow() {
     mutationFn: (payload: CreateWorkflowPayload) => createWorkflowApi(payload),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: WORKFLOWS_KEY })
-      toast.success('Workflow đã được tạo', {
-        description: `"${data.name}" đã được lưu thành công.`,
+      toast.success('Workflow created', {
+        description: `"${data.name}" was successfully saved.`,
       })
     },
     onError: (error) => {
-      toast.error('Tạo workflow thất bại', {
-        description: getErrorMessage(error, 'Không thể tạo workflow, vui lòng thử lại.'),
+      toast.error('Failed to create workflow', {
+        description: getErrorMessage(error, 'Could not create workflow, please try again.'),
       })
     },
   })
@@ -72,11 +72,11 @@ export function useUpdateWorkflow() {
       updateWorkflowApi(id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: WORKFLOWS_KEY })
-      toast.success('Workflow đã được cập nhật')
+      toast.success('Workflow updated')
     },
     onError: (error) => {
-      toast.error('Cập nhật workflow thất bại', {
-        description: getErrorMessage(error, 'Không thể cập nhật workflow, vui lòng thử lại.'),
+      toast.error('Failed to update workflow', {
+        description: getErrorMessage(error, 'Could not update workflow, please try again.'),
       })
     },
   })
@@ -88,11 +88,11 @@ export function useDeleteWorkflow() {
     mutationFn: (id: string) => deleteWorkflowApi(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: WORKFLOWS_KEY })
-      toast.success('Workflow đã được xoá')
+      toast.success('Workflow deleted')
     },
     onError: (error) => {
-      toast.error('Xoá workflow thất bại', {
-        description: getErrorMessage(error, 'Không thể xoá workflow, vui lòng thử lại.'),
+      toast.error('Failed to delete workflow', {
+        description: getErrorMessage(error, 'Could not delete workflow, please try again.'),
       })
     },
   })

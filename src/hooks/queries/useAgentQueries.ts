@@ -34,7 +34,7 @@ export function useAgents() {
   return useQuery({
     queryKey: AGENTS_KEY,
     queryFn: getAgentsApi,
-    meta: { errorMessage: 'Không thể tải danh sách agent' },
+    meta: { errorMessage: 'Failed to load agents' },
   })
 }
 
@@ -43,7 +43,7 @@ export function useAgent(id: string) {
     queryKey: [...AGENTS_KEY, id],
     queryFn: () => getAgentApi(id),
     enabled: Boolean(id),
-    meta: { errorMessage: 'Không thể tải agent' },
+    meta: { errorMessage: 'Failed to load agent' },
   })
 }
 
@@ -53,13 +53,13 @@ export function useCreateAgent() {
     mutationFn: (payload: CreateAgentPayload) => createAgentApi(payload),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: AGENTS_KEY })
-      toast.success('Agent đã được tạo', {
-        description: `"${data.name}" đã được thêm vào hệ thống.`,
+      toast.success('Agent created', {
+        description: `"${data.name}" was successfully added to the system.`,
       })
     },
     onError: (error) => {
-      toast.error('Tạo agent thất bại', {
-        description: getErrorMessage(error, 'Không thể tạo agent, vui lòng thử lại.'),
+      toast.error('Failed to create agent', {
+        description: getErrorMessage(error, 'Could not create agent, please try again.'),
       })
     },
   })
@@ -72,13 +72,13 @@ export function useUpdateAgent() {
       updateAgentApi(id, payload),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: AGENTS_KEY })
-      toast.success('Agent đã được cập nhật', {
-        description: `"${data.name}" đã được lưu thành công.`,
+      toast.success('Agent updated', {
+        description: `"${data.name}" was successfully updated.`,
       })
     },
     onError: (error) => {
-      toast.error('Cập nhật agent thất bại', {
-        description: getErrorMessage(error, 'Không thể cập nhật agent, vui lòng thử lại.'),
+      toast.error('Failed to update agent', {
+        description: getErrorMessage(error, 'Could not update agent, please try again.'),
       })
     },
   })
@@ -90,11 +90,11 @@ export function useDeleteAgent() {
     mutationFn: (id: string) => deleteAgentApi(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: AGENTS_KEY })
-      toast.success('Agent đã được xoá')
+      toast.success('Agent deleted')
     },
     onError: (error) => {
-      toast.error('Xoá agent thất bại', {
-        description: getErrorMessage(error, 'Không thể xoá agent, vui lòng thử lại.'),
+      toast.error('Failed to delete agent', {
+        description: getErrorMessage(error, 'Could not delete agent, please try again.'),
       })
     },
   })

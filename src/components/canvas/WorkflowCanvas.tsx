@@ -22,9 +22,10 @@ import { nodeTypes } from '@/components/nodes/nodeTypes'
 import type { Agent } from '@/types'
 import { Save, Trash2, Play, GitBranch } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
+import WorkflowSaveDialog from './WorkflowSaveDialog'
 
 interface WorkflowCanvasProps {
-  onSaveWorkflow?: (nodes: Node[], edges: Edge[]) => void
   onRunWorkflow?: () => void
   activeNodeIds?: string[]
   completedNodeIds?: string[]
@@ -32,12 +33,21 @@ interface WorkflowCanvasProps {
 
 // Inner canvas — must be wrapped in ReactFlowProvider
 function CanvasInner({
-  onSaveWorkflow,
   onRunWorkflow,
   activeNodeIds = [],
   completedNodeIds = [],
 }: WorkflowCanvasProps) {
-  const { nodes, edges, setNodes, setEdges, addAgentToCanvas, clearCanvas } = useWorkflowStore()
+  const { 
+    selectedWorkflow,
+    workflowName, 
+    setWorkflowName,
+    isPublic,
+    setIsPublic,
+    nodes, edges, setNodes, setEdges, addAgentToCanvas, clearCanvas 
+  } = useWorkflowStore()
+  
+  const [saveDialogOpen, setSaveDialogOpen] = React.useState(false)
+  
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
   const { fitView } = useReactFlow()
 
@@ -113,6 +123,27 @@ function CanvasInner({
     e.dataTransfer.dropEffect = 'move'
   }, [])
 
+  const handleSaveClick = () => {
+    // Collect agents in X-coordinate order to enforce sequence
+    const sortedNodes = [...nodes].sort((a, b) => a.position.x - b.position.x)
+    const orderedAgents = sortedNodes
+      .map((n) => (n.data as { agent?: Agent }).agent)
+      .filter((agent): agent is Agent => Boolean(agent?.id))
+
+    if (orderedAgents.length === 0) {
+      toast.error('Workflow trống', { description: 'Vui lòng thêm ít nhất 1 Agent vào Canvas trước khi lưu.' })
+      return
+    }
+
+    setSaveDialogOpen(true)
+  }
+
+  // Derive ordered agents strictly for the dialog to display
+  const orderedAgents = [...nodes]
+    .sort((a, b) => a.position.x - b.position.x)
+    .map((n) => (n.data as { agent?: Agent }).agent)
+    .filter((agent): agent is Agent => Boolean(agent?.id))
+
   return (
     <div
       ref={reactFlowWrapper}
@@ -148,6 +179,12 @@ function CanvasInner({
           style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}
         />
 
+        <MiniMap
+          nodeColor="#7c3aed"
+          maskColor="rgba(148,163,184,0.2)"
+          style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+        />
+
         {/* Toolbar */}
         <Panel position="top-right" className="flex gap-2">
           {onRunWorkflow && nodes.length > 0 && (
@@ -159,12 +196,12 @@ function CanvasInner({
               <Play className="w-3.5 h-3.5 mr-1.5" /> Run
             </Button>
           )}
-          {onSaveWorkflow && nodes.length > 0 && (
+          {nodes.length > 0 && (
             <Button
               id="save-workflow-btn"
               variant="default"
-              onClick={() => onSaveWorkflow(nodes, edges)}
-              className="h-8 px-3 text-xs shadow-md"
+              onClick={handleSaveClick}
+              className="h-8 px-3 text-xs shadow-md bg-zinc-900 hover:bg-zinc-800"
             >
               <Save className="w-3.5 h-3.5 mr-1.5" /> Save Workflow
             </Button>
@@ -193,6 +230,12 @@ function CanvasInner({
           </Panel>
         )}
       </ReactFlow>
+
+      <WorkflowSaveDialog 
+        open={saveDialogOpen} 
+        onOpenChange={setSaveDialogOpen} 
+        orderedAgents={orderedAgents}
+      />
     </div>
   )
 }

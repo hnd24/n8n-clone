@@ -7,8 +7,8 @@
  * • Per-agent "Edit" and "Delete" buttons (delete has confirmation state)
  * • Drag-to-canvas + click "+" to add still work
  */
-import React, { useState } from 'react'
-import { Plus, Search, GripVertical, Bot, RefreshCw, Pencil, Trash2, Loader2 } from 'lucide-react'
+import React, { useState, useMemo } from 'react'
+import { Plus, Search, GripVertical, Bot, RefreshCw, Pencil, Trash2, Loader2, CheckCircle2 } from 'lucide-react'
 import { useWorkflowStore } from '@/store/workflowStore'
 import { useAgents, useDeleteAgent } from '@/hooks/queries/useAgentQueries'
 import AgentFormModal from '@/components/agents/AgentFormModal'
@@ -28,9 +28,18 @@ import type { Agent } from '@/types'
 import { cn } from '@/lib/utils'
 
 export default function AgentSidebar() {
-  const { addAgentToCanvas } = useWorkflowStore()
+  const { nodes, addAgentToCanvas } = useWorkflowStore()
   const { data: agents = [], isLoading, refetch } = useAgents()
-  const deleteAgent = useDeleteAgent()
+  const deleteAgentMutation = useDeleteAgent()
+
+  const usedAgentIds = useMemo(() => {
+    const ids = new Set<string>()
+    nodes.forEach((node) => {
+      const agentId = (node.data as { agent?: Agent }).agent?.id
+      if (agentId) ids.add(agentId)
+    })
+    return ids
+  }, [nodes])
 
   const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
@@ -60,9 +69,9 @@ export default function AgentSidebar() {
   }
 
   const handleDelete = async (id: string) => {
-    const toastId = toast.loading('Đang xoá agent...')
+    const toastId = toast.loading('Deleting agent...')
     try {
-      await deleteAgent.mutateAsync(id)
+      await deleteAgentMutation.mutateAsync(id)
       toast.dismiss(toastId)
       setConfirmDeleteId(null)
     } catch (error) {
@@ -148,7 +157,8 @@ export default function AgentSidebar() {
             <AgentCard
               key={agent.id}
               agent={agent}
-              isDeleting={deleteAgent.isPending && confirmDeleteId === agent.id}
+              isOnCanvas={usedAgentIds.has(agent.id)}
+              isDeleting={deleteAgentMutation.isPending && confirmDeleteId === agent.id}
               confirmDelete={confirmDeleteId === agent.id}
               onDragStart={handleDragStart}
               onAddToCanvas={() => addAgentToCanvas(agent)}
@@ -175,6 +185,7 @@ export default function AgentSidebar() {
 
 interface AgentCardProps {
   agent: Agent
+  isOnCanvas: boolean
   isDeleting: boolean
   confirmDelete: boolean
   onDragStart: (e: React.DragEvent, agent: Agent) => void
@@ -186,7 +197,7 @@ interface AgentCardProps {
 }
 
 function AgentCard({
-  agent, isDeleting, confirmDelete,
+  agent, isOnCanvas, isDeleting, confirmDelete,
   onDragStart, onAddToCanvas, onEdit,
   onDeleteRequest, onDeleteConfirm, onDeleteCancel,
 }: AgentCardProps) {
@@ -194,58 +205,80 @@ function AgentCard({
     <div
       draggable={!confirmDelete}
       onDragStart={(e) => onDragStart(e, agent)}
-      className="group relative flex flex-col gap-1.5 p-3 rounded-xl border border-gray-200 bg-white hover:border-violet-300 hover:bg-violet-50 hover:shadow cursor-grab active:cursor-grabbing transition-all duration-150 shadow-sm"
+      onClick={() => {
+        if (isOnCanvas) {
+          // If already on canvas, maybe just highlight it via store or similar.
+          // For now, it's just a passive click handler.
+        }
+      }}
+      className={cn(
+        "group relative flex flex-col gap-1.5 p-3 rounded-xl border border-gray-200 bg-white hover:border-violet-300 hover:bg-violet-50 hover:shadow cursor-grab active:cursor-grabbing transition-all duration-150 shadow-sm",
+        isOnCanvas && "border-l-4 border-l-violet-500 bg-violet-50/50 hover:bg-violet-50/80 border-gray-200"
+      )}
     >
       {/* Top row: grip + name + action buttons */}
       <div className="flex items-start gap-2">
         <GripVertical className="w-3.5 h-3.5 text-gray-300 mt-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
 
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 flex items-center gap-2">
           <p className="text-sm font-semibold text-gray-800 truncate">{agent.name}</p>
-          <p className="text-[11px] text-gray-400 truncate mt-0.5">
-            {agent.description || 'No description'}
-          </p>
+          {isOnCanvas && (
+            <span className="flex items-center gap-1 text-[9px] font-medium text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+              <CheckCircle2 className="w-2.5 h-2.5" />
+              On Canvas
+            </span>
+          )}
+        </div>
+      </div>
+      
+      <p className="text-[11px] text-gray-400 truncate mt-0 pl-5">
+        {agent.description || 'No description'}
+      </p>
+
+      {/* Tools & Models line */}
+      <div className="flex items-center justify-between mt-1 pl-5">
+        {/* Model + tools badges */}
+        <div className="flex flex-wrap gap-1 flex-1">
+          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-violet-50 text-violet-600 border border-violet-200">
+            {agent.model || 'gemini-2.5-flash'}
+          </span>
+          {agent.tools?.slice(0, 2).map((tool) => (
+            <span key={tool} className="text-[9px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 border border-gray-200">
+              {tool.replace('_', ' ')}
+            </span>
+          ))}
+          {(agent.tools?.length ?? 0) > 2 && (
+            <span className="text-[9px] text-gray-400">+{(agent.tools?.length ?? 0) - 2}</span>
+          )}
         </div>
 
         {/* Action buttons — always visible on hover */}
         <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
-            onClick={onAddToCanvas}
+            onClick={(e) => { e.stopPropagation(); onAddToCanvas(); }}
             title="Add to canvas"
-            className="w-6 h-6 rounded-md flex items-center justify-center bg-violet-100 hover:bg-violet-200 text-violet-600 transition-colors"
+            className={cn(
+              "w-6 h-6 rounded-md flex items-center justify-center bg-violet-100 text-violet-600 transition-colors",
+              isOnCanvas ? "opacity-50 hover:opacity-100 hover:bg-violet-200" : "hover:bg-violet-200"
+            )}
           >
             <Plus className="w-3 h-3" />
           </button>
           <button
-            onClick={onEdit}
+            onClick={(e) => { e.stopPropagation(); onEdit(); }}
             title="Edit agent"
             className="w-6 h-6 rounded-md flex items-center justify-center bg-gray-100 hover:bg-blue-100 text-gray-500 hover:text-blue-600 transition-colors"
           >
             <Pencil className="w-3 h-3" />
           </button>
           <button
-            onClick={onDeleteRequest}
+            onClick={(e) => { e.stopPropagation(); onDeleteRequest(); }}
             title="Delete agent"
             className="w-6 h-6 rounded-md flex items-center justify-center bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-500 transition-colors"
           >
             <Trash2 className="w-3 h-3" />
           </button>
         </div>
-      </div>
-
-      {/* Model + tools badges */}
-      <div className="flex flex-wrap gap-1">
-        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-violet-50 text-violet-600 border border-violet-200">
-          {agent.model || 'gemini-2.5-flash'}
-        </span>
-        {agent.tools?.slice(0, 2).map((tool) => (
-          <span key={tool} className="text-[9px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 border border-gray-200">
-            {tool.replace('_', ' ')}
-          </span>
-        ))}
-        {(agent.tools?.length ?? 0) > 2 && (
-          <span className="text-[9px] text-gray-400">+{(agent.tools?.length ?? 0) - 2}</span>
-        )}
       </div>
 
       {/* Confirm delete dialog (shadcn) */}

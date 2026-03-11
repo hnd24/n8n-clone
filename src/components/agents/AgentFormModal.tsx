@@ -113,15 +113,15 @@ export default function AgentFormModal({ open, onClose, agent }: AgentFormModalP
     
     if (mode === 'create') {
       toast.promise(createAgent.mutateAsync(form), {
-        loading: 'Đang tạo Agent...',
-        success: (result) => `Tạo thành công: ${result.name}`,
-        error: 'Lỗi tạo Agent',
+        loading: 'Creating agent...',
+        success: (result) => `Successfully created: ${result.name}`,
+        error: 'Error creating agent',
       })
     } else {
       toast.promise(updateAgent.mutateAsync({ id: agent!.id, payload: form }), {
-        loading: 'Đang lưu cập nhật...',
-        success: (result) => `Đã cập nhật: ${result.name}`,
-        error: 'Lỗi cập nhật Agent',
+        loading: 'Saving updates...',
+        success: (result) => `Successfully updated: ${result.name}`,
+        error: 'Error updating agent',
       })
     }
     

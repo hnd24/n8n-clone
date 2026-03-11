@@ -12,7 +12,6 @@ import WorkflowCanvas from '@/components/canvas/WorkflowCanvas'
 import StreamingPanel from '@/components/streaming/StreamingPanel'
 import RunWorkflowModal from '@/components/streaming/RunWorkflowModal'
 import type { Workflow, Agent } from '@/types'
-import { Workflow as WorkflowIcon, LogOut, Play, ChevronLeft, ChevronRight, GitBranch, Loader2, Trash2 } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,8 +23,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { ChevronLeft, ChevronRight, GitBranch, Loader2, LogOut, Play, Trash2, WorkflowIcon } from 'lucide-react'
 
 // ─── Workflows Tab ────────────────────────────────────────────────────────
 function WorkflowsTab({
@@ -35,9 +38,11 @@ function WorkflowsTab({
 }) {
   const { data: workflows = [], isLoading: wfLoading } = useWorkflows()
   const { data: agents = [], isLoading: agentsLoading } = useAgents()
-  const deleteWorkflow = useDeleteWorkflow()
+  const deleteWorkflowMutation = useDeleteWorkflow()
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterTab, setFilterTab] = useState('all')
 
   const agentMap = new Map<string, string>(agents.map((a) => [a.id, a.name]))
   const isLoading = wfLoading || agentsLoading
@@ -60,95 +65,128 @@ function WorkflowsTab({
     )
   }
 
+  const filteredWorkflows = workflows.filter(wf => {
+    // 1. Search Query
+    if (searchQuery && !wf.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+      return false
+    }
+    // 2. Tab Filter
+    if (filterTab === 'public' && !wf.is_public) return false
+    if (filterTab === 'private' && wf.is_public) return false
+    return true
+  })
+
   return (
-    <div className="p-4 space-y-3 overflow-auto h-full max-w-2xl">
-      {workflows.map((wf) => (
-        <div
-          key={wf.id}
-          onClick={() => onLoadWorkflow(wf, agents)}
-          className="group p-4 rounded-xl border border-gray-200 bg-white hover:border-violet-300 hover:shadow-md cursor-pointer transition-all"
-        >
-          <div className="flex items-start justify-between mb-2.5">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-800 group-hover:text-violet-700 transition-colors">
-                {wf.name}
-              </h3>
-              <p className="text-[10px] text-gray-400 font-mono mt-0.5">{wf.id}</p>
-            </div>
-            <div className="flex gap-1.5 flex-shrink-0 items-center">
-              {wf.is_public && (
-                <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">public</span>
-              )}
-              <span className="text-[10px] bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded-full">
-                {wf.steps?.length ?? 0} steps
-              </span>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setConfirmDeleteId(wf.id)
-                }}
-                className="ml-2 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100"
-                title="Delete Workflow"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-          
-          {/* AlertDialog for this specific workflow */}
-          <AlertDialog open={confirmDeleteId === wf.id} onOpenChange={(val) => !val && setConfirmDeleteId(null)}>
-            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Xóa Workflow</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Bạn có chắc muốn xoá workflow <strong>{wf.name}</strong>? Hành động này không thể hoàn tác.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={deleteWorkflow.isPending}>Hủy</AlertDialogCancel>
-                <Button
-                  variant="destructive"
-                  disabled={deleteWorkflow.isPending}
-                  onClick={async (e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    const toastId = toast.loading('Đang xoá workflow...')
-                    try {
-                      await deleteWorkflow.mutateAsync(wf.id)
-                      toast.dismiss(toastId)
-                      setConfirmDeleteId(null)
-                    } catch (error) {
-                      toast.dismiss(toastId)
-                      // error toast already handled by useDeleteWorkflow hook
-                    }
-                  }}
-                >
-                  {deleteWorkflow.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-                  Xóa
-                </Button>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+    <div className="p-4 flex flex-col h-full max-w-3xl mx-auto space-y-4">
+      {/* List Header Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+        <Input
+          placeholder="Tìm workflow theo tên..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="xl:w-[280px]"
+        />
+        <Tabs value={filterTab} onValueChange={setFilterTab}>
+          <TabsList>
+            <TabsTrigger value="all">Tất cả</TabsTrigger>
+            <TabsTrigger value="public">Công khai</TabsTrigger>
+            <TabsTrigger value="private">Cá nhân</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
-          {/* Step pipeline visualization */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {(wf.steps ?? []).map((stepId, i) => (
-              <span key={stepId} className="flex items-center gap-1.5">
-                <span className="text-[11px] px-2.5 py-1 rounded-lg bg-violet-50 text-violet-700 border border-violet-200 font-medium">
-                  {agentMap.get(stepId) ?? `Agent ${i + 1}`}
-                </span>
-                {i < (wf.steps ?? []).length - 1 && (
-                  <span className="text-violet-300 font-bold">→</span>
-                )}
-              </span>
-            ))}
-          </div>
+      {/* List Body */}
+      <div className="flex-1 overflow-y-auto space-y-3 pb-4">
+        {filteredWorkflows.length === 0 ? (
+          <div className="text-center py-12 text-gray-400">Không tìm thấy workflow nào phù hợp.</div>
+        ) : (
+          filteredWorkflows.map((wf) => (
+            <div
+              key={wf.id}
+              onClick={() => onLoadWorkflow(wf, agents)}
+              className="group flex flex-col gap-3 p-4 rounded-xl border border-gray-200 bg-white hover:border-violet-300 hover:shadow-md cursor-pointer transition-all"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-[15px] font-semibold text-gray-800 group-hover:text-violet-700 transition-colors">
+                    {wf.name}
+                  </h3>
+                  <p className="text-[10px] text-gray-400 font-mono mt-0.5">{wf.id}</p>
+                </div>
+                <div className="flex gap-2 shrink-0 items-center">
+                  {wf.is_public ? (
+                    <Badge variant="default" className="bg-blue-100 text-blue-700 hover:bg-blue-200 uppercase tracking-wider text-[9px] px-1.5 py-0">PUBLIC</Badge>
+                  ) : (
+                    <Badge variant="secondary" className="uppercase tracking-wider text-[9px] px-1.5 py-0 text-gray-600">PRIVATE</Badge>
+                  )}
+                  <Badge variant="outline" className="text-[10px] text-violet-600 border-violet-200 bg-violet-50">
+                    {wf.steps?.length ?? 0} steps
+                  </Badge>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setConfirmDeleteId(wf.id)
+                    }}
+                    className="ml-1 p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                    title="Delete Workflow"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
 
-          <p className="text-[10px] text-gray-300 mt-2">
-            Click to load onto Canvas →
-          </p>
-        </div>
-      ))}
+              {/* AlertDialog for this specific workflow */}
+              <AlertDialog open={confirmDeleteId === wf.id} onOpenChange={(val) => !val && setConfirmDeleteId(null)}>
+                <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Xóa Workflow</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Bạn có chắc muốn xoá workflow <strong>{wf.name}</strong>? Hành động này không thể hoàn tác.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={deleteWorkflowMutation.isPending}>Hủy</AlertDialogCancel>
+                    <Button
+                      variant="destructive"
+                      disabled={deleteWorkflowMutation.isPending}
+                      onClick={async (e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        const toastId = toast.loading('Đang xoá workflow...')
+                        try {
+                          await deleteWorkflowMutation.mutateAsync(wf.id)
+                          toast.dismiss(toastId)
+                          setConfirmDeleteId(null)
+                        } catch (error) {
+                          toast.dismiss(toastId)
+                          // error toast already handled by hook
+                        }
+                      }}
+                    >
+                      {deleteWorkflowMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                      Xóa
+                    </Button>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              {/* Step pipeline visualization */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {(wf.steps ?? []).map((stepId, i) => (
+                  <span key={stepId} className="flex items-center gap-1.5">
+                    <span className="text-xs px-2.5 py-1 rounded-md bg-gray-50 text-gray-700 border border-gray-200 font-medium">
+                      {agentMap.get(stepId) ?? `Agent ${i + 1}`}
+                    </span>
+                    {i < (wf.steps ?? []).length - 1 && (
+                      <span className="text-gray-300 font-bold">→</span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   )
 }
@@ -159,8 +197,6 @@ export default function DashboardPage() {
   const { nodes } = useWorkflowStore()
   const { blocks } = useSocketStore()
   const { emitWorkflowChat } = useSocket()
-  const createWorkflow = useCreateWorkflow()
-  const updateWorkflow = useUpdateWorkflow()
   const navigate = useNavigate()
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -168,7 +204,6 @@ export default function DashboardPage() {
   const [runModalOpen, setRunModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'canvas' | 'workflows'>('canvas')
   // activeNodeIds / completedNodeIds are now derived from blocks (see below)
-  const [savedWorkflow, setSavedWorkflow] = useState<Workflow | null>(null)
 
   const handleLogout = () => {
     logout()
@@ -228,56 +263,10 @@ export default function DashboardPage() {
   const activeNodeIds = blocks.filter((b) => b.status === 'typing').map((b) => b.nodeId)
   const completedNodeIds = blocks.filter((b) => b.status === 'done').map((b) => b.nodeId)
 
-  const handleSaveWorkflow = async () => {
-    const { nodes: currentNodes } = useWorkflowStore.getState()
-    const sortedNodes = [...currentNodes].sort((a, b) => a.position.x - b.position.x)
-    const steps = sortedNodes
-      .map((n) => (n.data as { agent?: { id: string } }).agent?.id)
-      .filter((id): id is string => Boolean(id))
-
-    if (steps.length === 0) return
-
-    try {
-      if (savedWorkflow) {
-        toast.promise(
-          updateWorkflow.mutateAsync({
-            id: savedWorkflow.id,
-            payload: { steps, name: savedWorkflow.name }
-          }),
-          {
-            loading: 'Đang lưu cập nhật Workflow...',
-            success: (wf) => {
-              setSavedWorkflow(wf)
-              return `Đã cập nhật Workflow "${wf.name}"`
-            },
-            error: 'Lỗi khi cập nhật Workflow'
-          }
-        )
-      } else {
-        toast.promise(
-          createWorkflow.mutateAsync({
-            name: `Workflow ${new Date().toLocaleTimeString()}`,
-            steps,
-            is_public: false,
-          }),
-          {
-            loading: 'Đang tạo Workflow...',
-            success: (wf) => {
-              setSavedWorkflow(wf)
-              return `Đã lưu Workflow "${wf.name}" thành công`
-            },
-            error: 'Lỗi khi lưu Workflow'
-          }
-        )
-      }
-    } catch (err) {
-      console.error('[Dashboard] Save workflow failed:', err)
-    }
-  }
-
   const handleRunWorkflow = useCallback(
     async (message: string, workflowId?: string) => {
-      const targetId = workflowId ?? savedWorkflow?.id
+      const { selectedWorkflow, workflowName, isPublic } = useWorkflowStore.getState()
+      const targetId = workflowId ?? selectedWorkflow?.id
 
       if (targetId) {
         // ── Inject coordinator context then run ────────────────────────
@@ -295,24 +284,29 @@ export default function DashboardPage() {
 
       if (steps.length === 0) return
 
-      createWorkflow.mutateAsync({ name: `Run-${Date.now()}`, steps, is_public: false })
-        .then(async (wf) => {
-          setSavedWorkflow(wf)
-          await injectCoordinatorContext(wf.id)
-          emitWorkflowChat(wf.id, message)
-        })
-        .catch(console.error)
+      try {
+        const { createWorkflowApi } = await import('@/api/workflows')
+        const wf = await createWorkflowApi({ name: workflowName || `Run-${Date.now()}`, steps, is_public: isPublic })
+        useWorkflowStore.getState().selectWorkflow(wf)
+        await injectCoordinatorContext(wf.id)
+        emitWorkflowChat(wf.id, message)
+      } catch (err) {
+        console.error('[Dashboard] Run-on-the-fly workflow failed:', err)
+      }
     },
-    [savedWorkflow, emitWorkflowChat, createWorkflow]
+    [emitWorkflowChat, injectCoordinatorContext]
   )
 
   // Load workflow onto canvas and switch to canvas tab
   const handleLoadWorkflow = useCallback((wf: Workflow, agents: Agent[]) => {
-    setSavedWorkflow(wf)
-    const store = useWorkflowStore.getState()
-    store.setNodesFromSteps(wf.steps ?? [], agents)
-    store.selectWorkflow(wf)       // ← persists to store so RunWorkflowModal sees it
-    setActiveTab('canvas')
+    // Un-select to reset Run view
+    useWorkflowStore.getState().selectWorkflow(null)
+    // Then open it
+    setTimeout(() => {
+      useWorkflowStore.getState().loadWorkflowToCanvas(wf, agents)
+      setActiveTab('canvas')
+      if (window.innerWidth < 768) setSidebarCollapsed(true)
+    }, 0)
   }, [])
 
   const canvasAgentNames = [...nodes]
@@ -428,7 +422,6 @@ export default function DashboardPage() {
           <div className="flex-1 overflow-hidden">
             {activeTab === 'canvas' ? (
               <WorkflowCanvas
-                onSaveWorkflow={() => void handleSaveWorkflow()}
                 onRunWorkflow={() => setRunModalOpen(true)}
                 activeNodeIds={activeNodeIds}
                 completedNodeIds={completedNodeIds}

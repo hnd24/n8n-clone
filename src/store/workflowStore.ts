@@ -39,9 +39,13 @@ function buildNodesAndEdges(agents: Agent[]): { nodes: Node[]; edges: Edge[] } {
 
 interface WorkflowState {
   selectedWorkflow: Workflow | null
+  workflowName: string
+  isPublic: boolean
   nodes: Node[]
   edges: Edge[]
   selectWorkflow: (workflow: Workflow | null) => void
+  setWorkflowName: (name: string) => void
+  setIsPublic: (isPublic: boolean) => void
   setNodes: (nodes: Node[]) => void
   setEdges: (edges: Edge[]) => void
   addAgentToCanvas: (agent: Agent, position?: { x: number; y: number }) => void
@@ -59,10 +63,18 @@ let nodeCounter = 0
 
 export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   selectedWorkflow: null,
+  workflowName: 'Untitled Workflow',
+  isPublic: false,
   nodes: [],
   edges: [],
 
-  selectWorkflow: (workflow) => set({ selectedWorkflow: workflow }),
+  selectWorkflow: (workflow) => set({ 
+    selectedWorkflow: workflow,
+    workflowName: workflow?.name || 'Untitled Workflow',
+    isPublic: workflow?.is_public || false
+  }),
+  setWorkflowName: (name) => set({ workflowName: name }),
+  setIsPublic: (val) => set({ isPublic: val }),
   setNodes: (nodes) => set({ nodes }),
   setEdges: (edges) => set({ edges }),
 
@@ -117,16 +129,16 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   loadWorkflowToCanvas: (workflow, agents) => {
     if (!workflow?.steps?.length) {
-      set({ nodes: [], edges: [], selectedWorkflow: workflow })
+      set({ nodes: [], edges: [], selectedWorkflow: workflow, workflowName: workflow?.name || 'Untitled Workflow', isPublic: workflow?.is_public || false })
       return
     }
     get().setNodesFromSteps(workflow.steps, agents ?? [])
-    set({ selectedWorkflow: workflow })
+    set({ selectedWorkflow: workflow, workflowName: workflow.name, isPublic: workflow.is_public || false })
   },
 
   clearCanvas: () => {
     nodeCounter = 0
-    set({ nodes: [], edges: [] })
+    set({ nodes: [], edges: [], selectedWorkflow: null, workflowName: 'Untitled Workflow', isPublic: false })
   },
 
   // Legacy compat: do not use — use the mutation hook instead
