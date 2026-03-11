@@ -6,6 +6,7 @@ import { useSocketStore } from '@/store/socketStore'
 import { useSocket, initSocket } from '@/hooks/useSocket'
 import { useWorkflows, useCreateWorkflow } from '@/hooks/queries/useWorkflowQueries'
 import { useAgents } from '@/hooks/queries/useAgentQueries'
+import { updateAgentApi } from '@/api/agents'
 import AgentSidebar from '@/components/sidebar/AgentSidebar'
 import WorkflowCanvas from '@/components/canvas/WorkflowCanvas'
 import StreamingPanel from '@/components/streaming/StreamingPanel'
@@ -118,6 +119,50 @@ export default function DashboardPage() {
     initSocket() // Connection only starts when dashboard mounts
   }, [])
 
+  /**
+   * Before running, patch the coordinator (first) agent's system_prompt
+   * to append a [SYSTEM INFO] block listing every downstream agent UUID.
+   * This fixes the "LLM routes to wrong ID" bug: the model writes routing
+   * decisions using agent names, but the backend needs real UUIDs in next_agents.
+   */
+  const injectCoordinatorContext = useCallback(async (workflowId: string) => {
+    // Re-use the current canvas node order to determine the step sequence
+    const { nodes: currentNodes } = useWorkflowStore.getState()
+    const sorted = [...currentNodes].sort((a, b) => a.position.x - b.position.x)
+    const agentEntries = sorted
+      .map((n) => (n.data as { agent?: Agent }).agent)
+      .filter((a): a is Agent => Boolean(a?.id))
+
+    if (agentEntries.length < 2) return  // coordinator only makes sense with ≥2 agents
+
+    const coordinator = agentEntries[0]
+    const downstream = agentEntries.slice(1)
+
+    // Build the injection block
+    const injectionBlock = [
+      '\n\n[SYSTEM INFO - được inject tự động bởi Frontend khi chạy workflow]',
+      'Danh sách Agent ID chính xác để sử dụng trong trường "next_agents" của routing decision JSON:',
+      ...downstream.map((a) => `- ${a.name}: "${a.id}"`),
+      '\nLƯU Ý QUAN TRỌNG: Phải dùng đúng UUID ở trên, KHÔNG dùng tên agent.',
+      '[/SYSTEM INFO]',
+    ].join('\n')
+
+    // Only inject if not already present (avoids growing prompt on repeated runs)
+    if (coordinator.system_prompt?.includes('[SYSTEM INFO')) return
+
+    try {
+      await updateAgentApi(coordinator.id, {
+        system_prompt: (coordinator.system_prompt ?? '') + injectionBlock,
+      })
+      console.log(
+        `[Dashboard] Injected ${downstream.length} agent IDs into coordinator "${coordinator.name}" (${workflowId})`
+      )
+    } catch (err) {
+      console.warn('[Dashboard] Could not inject coordinator context:', err)
+      // Non-fatal: workflow still runs, just without the injection
+    }
+  }, [])
+
   // Derive active/completed node IDs from streaming blocks
   const activeNodeIds = blocks.filter((b) => b.status === 'typing').map((b) => b.nodeId)
   const completedNodeIds = blocks.filter((b) => b.status === 'done').map((b) => b.nodeId)
@@ -145,12 +190,12 @@ export default function DashboardPage() {
   }
 
   const handleRunWorkflow = useCallback(
-    (message: string, workflowId?: string) => {
-      // clearLog resets blocks in the store; activeNodeIds/completedNodeIds are derived from blocks
-
+    async (message: string, workflowId?: string) => {
       const targetId = workflowId ?? savedWorkflow?.id
 
       if (targetId) {
+        // ── Inject coordinator context then run ────────────────────────
+        await injectCoordinatorContext(targetId)
         emitWorkflowChat(targetId, message)
         return
       }
@@ -165,8 +210,9 @@ export default function DashboardPage() {
       if (steps.length === 0) return
 
       createWorkflow.mutateAsync({ name: `Run-${Date.now()}`, steps, is_public: false })
-        .then((wf) => {
+        .then(async (wf) => {
           setSavedWorkflow(wf)
+          await injectCoordinatorContext(wf.id)
           emitWorkflowChat(wf.id, message)
         })
         .catch(console.error)
