@@ -37,16 +37,22 @@ export function initSocket(): Socket {
     _socket = null
   }
 
+  if (!BASE_URL) {
+    console.error('[Socket.IO] ❌ BASE_URL is not defined — cannot connect')
+    throw new Error('Socket.IO BASE_URL is required')
+  }
+
   const token = localStorage.getItem('access_token')
 
   console.log(
-    `[Socket.IO] 🔌 Connecting directly to backend: ${BASE_URL}`,
+    `[Socket.IO] 🔌 Connecting directly to: ${BASE_URL}`,
     '| token:', token ? `${token.slice(0, 20)}…` : 'NONE'
   )
 
   const socket = io(BASE_URL, {
     path: '/socket.io',
     transports: ['polling', 'websocket'],   // polling first for handshake (per spec)
+    withCredentials: true,
     forceNew: true,
     reconnection: true,
     reconnectionAttempts: Infinity,
@@ -68,7 +74,7 @@ export function initSocket(): Socket {
       'color:#16a34a;font-weight:bold;font-size:13px',
       `\n  sid       : ${socket.id}`,
       `\n  transport : ${transport}`,
-      `\n  URL       : /socket.io (Vite proxy)`
+      `\n  URL       : ${BASE_URL} (Direct)`
     )
     s().setConnected(true)
   })

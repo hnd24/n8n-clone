@@ -24,22 +24,19 @@ axiosInstance.interceptors.request.use(
 )
 
 // Response interceptor: handle 401 globally
-// Critical: we must clear BOTH localStorage AND the Zustand persisted state
-// before redirecting, otherwise Zustand rehydrates isAuthenticated: true on
-// reload and LoginPage immediately bounces back to "/" — creating an infinite loop.
+// CRITICAL: Only redirect when we are NOT already on /login.
+// Without this guard, a 401 from the login request itself triggers a full
+// page reload that re-renders LoginPage → redirect back to / → infinite loop.
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Clear localStorage auth data
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('user')
-      // Also clear the Zustand persisted state key to prevent rehydration loop
-      localStorage.removeItem('auth-storage')
-      // Reset auth store state in memory as well
+    if (
+      error.response?.status === 401 &&
+      !window.location.pathname.includes('/login')
+    ) {
+      // logout() clears localStorage AND the Zustand persisted key, so
+      // ProtectedRoute will see isAuthenticated:false after the reload.
       useAuthStore.getState().logout()
-      // Use React Router navigate via window is fine here since we also
-      // reset state — the loop is broken because isAuthenticated will be false
       window.location.replace('/login')
     }
     return Promise.reject(error)
