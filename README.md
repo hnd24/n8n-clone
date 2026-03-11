@@ -1,52 +1,162 @@
-# Clone-n8n Frontend Development
+# n8n Clone — AI Workflow Orchestration Frontend
 
-This is the frontend implementation of exactly cloning an n8n-like UI, built strictly according to `API_FLOW_UI.md` specifications.
-
-## 🛠 Technical Stack
-- **Framework:** React 18, Vite, TypeScript (SPA architecture).
-- **Styling:** Tailwind CSS v4 + native CSS variables (Force Light Mode).
-- **UI Components:** Shadcn UI (Radix UI) + custom native HTML equivalents for explicit light colors.
-- **Workflow Engine:** ReactFlow (handling node layouts, dragging constraints, custom `AgentNode`).
-- **State Management:** Zustand (modules: `authStore`, `agentsStore`, `workflowStore`, `socketStore`).
-- **Realtime / Streaming:** Socket.IO Client (`socket.io-client`).
-- **HTTP/Fetch:** Axios with global Interceptors handling auth headers and 401 fallbacks.
-
-## 🚨 Current Status & Blockers
-**Socket.IO Connection Issue**
-The UI streams workflow activity using Socket.IO via `http://192.168.1.40:8000`. 
-
-- **The Issue**: Despite verifying the backend connects perfectly with a standard `curl` or external WS tool (returning `200 OK` with SID and Upgrade requests), the **React Client repeatedly hits `connect_error`**.
-- **Efforts taken**: `useSocket.ts` has been heavily iterated (e.g. `transports: ['polling', 'websocket']`, `withCredentials: true`, `forceNew: true`, passing tokens explicitly in `auth` and `extraHeaders`, bypassing React `StrictMode` by using module-level Singletons).
-- **Next steps**: Another AI or developer needs to analyze `PROJECT_CONTEXT.md` to spot any missing CORS pre-flight, wrong namespace paths, or obscure Vite/Proxy settings blocking the handshake.
+> Visual drag-and-drop UI for building multi-agent AI workflows powered by the **AgentCrew** backend.
 
 ---
 
-## 📂 Project Directory Structure
-```text
+## Quick Start
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Set backend URL
+echo "VITE_BACKEND_URL=http://localhost:8000" > .env
+
+# 3. Start dev server
+npm run dev        # http://localhost:5173
+```
+
+**Backend:** `cd ../AgentCrew-main && uvicorn agent_admin_backend.main:socket_app --port 8000 --reload`
+
+---
+
+## Tech Stack
+
+| Layer | Library | Version |
+|---|---|---|
+| Framework | React | 18 |
+| Build | Vite | 6 |
+| Language | TypeScript | 5.8 |
+| Styling | Tailwind CSS | 3 |
+| Routing | React Router | 6 |
+| Server State | TanStack Query | 5 |
+| Client State | Zustand | 5 |
+| Canvas | ReactFlow | 11 |
+| Real-time | Socket.IO Client | 4 |
+| HTTP | Axios | 1 |
+| Notifications | Sonner | latest |
+| Markdown | react-markdown + remark-gfm | latest |
+
+---
+
+## Project Structure
+
+```
 src/
-├── api/                   # Axios instance & specific API caller functions
-│   ├── agents.ts          # agent CRUD
-│   ├── auth.ts            # auth/login endpoints
-│   ├── axiosInstance.ts   # Axios setup (Bearer interceptors)
-│   ├── tools.ts           # tool list endpoint
-│   └── workflows.ts       # workflow CRUD + execution triggers
-├── assets/                # Static assets (React/Vite logos)
-├── components/            # React UI Components
-│   ├── ProtectedRoute.tsx # Route wrapper for auth checking
-│   ├── canvas/            # ReactFlow Logic (WorkflowCanvas)
-│   ├── nodes/             # ReactFlow custom node visuals (AgentNode)
-│   ├── sidebar/           # Draggable agents list (AgentSidebar)
-│   ├── streaming/         # Live output UI & modal triggers (RunWorkflowModal, StreamingPanel)
-│   └── ui/                # Shadcn primitives (Card, Button, Dialog, etc.)
-├── hooks/                 # Custom React Hooks
-│   └── useSocket.ts       # Connects Socket.IO, maps backend events to socketStore
-├── store/                 # Zustand state management
-│   ├── agentsStore.ts     # Fetched agents library
-│   ├── authStore.ts       # JWT + User persist
-│   ├── socketStore.ts     # Timeline state for socket streaming (NodeBlock format)
-│   └── workflowStore.ts   # ReactFlow Node/Edge conversion & graph state
-├── types/                 # Universal TypeScript interfaces (matching API Docs)
-├── App.tsx                # React Router & strict route definitions
-├── index.css              # Global styles, Shadcn preset variables & CSS overrides
-└── main.tsx               # App mount tree (NO StrictMode to avoid module singleton double-calls)
+├── api/                    # Pure Axios API functions (no React)
+│   ├── axiosInstance.ts    # Singleton Axios + 401 interceptor
+│   ├── agents.ts           # CRUD for /agents/
+│   └── workflows.ts        # CRUD for /workflows/
+│
+├── components/
+│   ├── canvas/             # ReactFlow canvas + toolbar
+│   ├── nodes/              # Custom ReactFlow node components (AgentNode)
+│   ├── sidebar/            # Agent drag-source sidebar
+│   ├── streaming/          # Live output panel (StreamingPanel, RunWorkflowModal)
+│   └── ui/                 # Primitive UI components (shadcn-style)
+│
+├── hooks/
+│   ├── queries/            # TanStack Query custom hooks
+│   │   ├── useWorkflowQueries.ts
+│   │   └── useAgentQueries.ts
+│   └── useSocket.ts        # Socket.IO singleton + event wiring
+│
+├── pages/
+│   ├── DashboardPage.tsx   # Main app: canvas + sidebar + streaming panel
+│   └── LoginPage.tsx       # Authentication page
+│
+├── routes/
+│   └── index.tsx           # Centralized route config (lazy + protected)
+│
+├── store/
+│   ├── authStore.ts        # Zustand: JWT token, user, isRehydrated
+│   ├── workflowStore.ts    # Zustand: ReactFlow nodes/edges state
+│   ├── socketStore.ts      # Zustand: streaming blocks, currentNodeId
+│   └── agentsStore.ts      # Zustand: agent list (legacy shim)
+│
+├── types/
+│   └── index.ts            # Shared TypeScript interfaces (Agent, Workflow…)
+│
+├── App.tsx                 # Root: BrowserRouter + useRoutes + Suspense
+└── main.tsx                # Entry: QueryClient + Toaster + ReactQueryDevtools
+```
+
+---
+
+## Data Flow
+
+```
+User Action
+  │
+  ├─► REST (CRUD)
+  │     Axios (axiosInstance.ts)
+  │       └─► TanStack Query (hooks/queries/)
+  │             └─► Zustand store (if needed for UI state)
+  │                   └─► React Component re-render
+  │
+  └─► Real-time (Workflow Run)
+        Socket.IO (hooks/useSocket.ts)
+          └─► socketStore (Zustand)
+                └─► StreamingPanel re-render (useDeferredValue)
+                └─► WorkflowCanvas (activeNodeIds → AgentNode highlight)
+```
+
+**Auth flow:**
+1. `POST /auth/token` → JWT stored in `localStorage` via `authStore`
+2. Axios interceptor injects `Authorization: Bearer <token>` on every request
+3. 401 response → `authStore.logout()` + redirect to `/login` (skipped if already on `/login`)
+4. `ProtectedRoute` waits for `isRehydrated` before redirecting (prevents flash)
+
+---
+
+## Adding a New Page
+
+1. Create `src/pages/YourPage.tsx`
+2. In `src/routes/index.tsx`, add:
+   ```tsx
+   const YourPage = lazy(() => import('@/pages/YourPage'))
+   ```
+3. Add a `RouteObject` to `publicRoutes` or `privateRoutes`:
+   ```tsx
+   { path: '/your-path', element: <YourPage /> }
+   ```
+4. No changes needed in `App.tsx`.
+
+## Adding a New Data Hook
+
+1. Add the API function to `src/api/yourEntity.ts`
+2. Create `src/hooks/queries/useYourEntityQueries.ts`:
+   ```ts
+   export function useYourEntities() {
+     return useQuery({ queryKey: ['your-entity'], queryFn: getYourEntitiesApi })
+   }
+   export function useCreateYourEntity() {
+     const qc = useQueryClient()
+     return useMutation({
+       mutationFn: createYourEntityApi,
+       onSuccess: () => { qc.invalidateQueries({ queryKey: ['your-entity'] }); toast.success('Created!') },
+       onError: (err) => toast.error('Failed', { description: getErrorMessage(err) }),
+     })
+   }
+   ```
+3. Export from `src/hooks/index.ts`
+
+---
+
+## Environment Variables
+
+| Variable | Description | Default |
+|---|---|---|
+| `VITE_BACKEND_URL` | Backend API + Socket.IO base URL | `http://localhost:8000` |
+
+---
+
+## Scripts
+
+```bash
+npm run dev      # Dev server with HMR
+npm run build    # Production bundle
+npm run preview  # Preview production build
+npm run lint     # ESLint check
 ```
