@@ -1,10 +1,10 @@
 /**
  * AgentFormModal.tsx
- * Refactored using shadcn/ui components: Dialog, Tabs, ScrollArea, Badge.
- * Models are explicitly synced from backend constants.py (Google & OpenAI priorities).
+ * Redesigned for a cleaner, modern, and harmonious UI.
+ * Consolidated color schemes to focus on a primary accent (Violet).
  */
 import { useEffect, useState } from 'react'
-import { Bot, Loader2, Check } from 'lucide-react'
+import { Bot, Loader2, Check, Settings2, FileText } from 'lucide-react'
 import { useCreateAgent, useUpdateAgent } from '@/hooks/queries/useAgentQueries'
 import type { Agent, CreateAgentPayload } from '@/types'
 import { cn } from '@/lib/utils'
@@ -23,20 +23,20 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
-// ── All tools supported by the backend (AgentCreate Literal) ──────────────
+// ── Constants ─────────────────────────────────────────────────────────────
+
 const ALL_TOOLS = [
-  { id: 'memory',            label: 'Memory',            color: 'bg-violet-100 text-violet-700 hover:bg-violet-200' },
-  { id: 'web_search',        label: 'Web Search',        color: 'bg-blue-100 text-blue-700 hover:bg-blue-200' },
-  { id: 'file_editing',      label: 'File Editing',      color: 'bg-amber-100 text-amber-700 hover:bg-amber-200' },
-  { id: 'code_analysis',     label: 'Code Analysis',     color: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' },
-  { id: 'command_execution', label: 'Command Execution', color: 'bg-red-100 text-red-700 hover:bg-red-200' },
-  { id: 'browser',           label: 'Browser',           color: 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200' },
-  { id: 'image_generation',  label: 'Image Generation',  color: 'bg-pink-100 text-pink-700 hover:bg-pink-200' },
-  { id: 'clipboard',         label: 'Clipboard',         color: 'bg-orange-100 text-orange-700 hover:bg-orange-200' },
-  { id: 'skills',            label: 'Skills',            color: 'bg-gray-100 text-gray-700 hover:bg-gray-200' },
+  { id: 'memory', label: 'Memory' },
+  { id: 'web_search', label: 'Web Search' },
+  { id: 'file_editing', label: 'File Editing' },
+  { id: 'code_analysis', label: 'Code Analysis' },
+  { id: 'command_execution', label: 'Command Execution' },
+  { id: 'browser', label: 'Browser' },
+  { id: 'image_generation', label: 'Image Generation' },
+  { id: 'clipboard', label: 'Clipboard' },
+  { id: 'skills', label: 'Skills' },
 ] as const
 
-// Synced from agent_admin_backend/AgentCrew/modules/llm/constants.py
 const GOOGLE_MODELS = [
   'gemini-3.1-pro-preview',
   'gemini-3-pro-preview',
@@ -72,6 +72,8 @@ const defaultForm = (): CreateAgentPayload => ({
   temperature: 1.0,
 })
 
+// ── Component ─────────────────────────────────────────────────────────────
+
 export default function AgentFormModal({ open, onClose, agent }: AgentFormModalProps) {
   const mode: Mode = agent ? 'edit' : 'create'
   const [form, setForm] = useState<CreateAgentPayload>(defaultForm())
@@ -81,18 +83,17 @@ export default function AgentFormModal({ open, onClose, agent }: AgentFormModalP
   const updateAgent = useUpdateAgent()
   const isBusy = createAgent.isPending || updateAgent.isPending
 
-  // Sync form when modal opens or agent changes
   useEffect(() => {
     if (open) {
       setForm(agent
         ? {
-            name: agent.name,
-            description: agent.description,
-            system_prompt: agent.system_prompt,
-            model: agent.model || 'gemini-2.5-flash',
-            tools: agent.tools ?? [],
-            temperature: agent.temperature ?? 1.0,
-          }
+          name: agent.name,
+          description: agent.description,
+          system_prompt: agent.system_prompt,
+          model: agent.model || 'gemini-2.5-flash',
+          tools: agent.tools ?? [],
+          temperature: agent.temperature ?? 1.0,
+        }
         : defaultForm()
       )
       setActiveTab('basic')
@@ -110,95 +111,112 @@ export default function AgentFormModal({ open, onClose, agent }: AgentFormModalP
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (mode === 'create') {
-      toast.promise(createAgent.mutateAsync(form), {
-        loading: 'Creating agent...',
-        success: (result) => `Successfully created: ${result.name}`,
-        error: 'Error creating agent',
-      })
-    } else {
-      toast.promise(updateAgent.mutateAsync({ id: agent!.id, payload: form }), {
-        loading: 'Saving updates...',
-        success: (result) => `Successfully updated: ${result.name}`,
-        error: 'Error updating agent',
-      })
+
+    try {
+      if (mode === 'create') {
+        const result = await createAgent.mutateAsync(form)
+        toast.success(`Successfully created: ${result.name}`)
+      } else {
+        const result = await updateAgent.mutateAsync({ id: agent!.id, payload: form })
+        toast.success(`Successfully updated: ${result.name}`)
+      }
+      onClose()
+    } catch (error) {
+      toast.error(mode === 'create' ? 'Failed to create agent' : 'Failed to update agent')
     }
-    
-    onClose()
   }
 
   return (
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
-      <DialogContent className="max-w-2xl p-0 overflow-hidden gap-0 bg-gray-50/50">
-        <form onSubmit={handleSubmit} className="flex flex-col max-h-[90vh]">
-          
-          <DialogHeader className="p-6 pb-4 bg-white border-b border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
-                <Bot className="w-5 h-5 text-violet-600" />
+      <DialogContent className="max-w-2xl p-0 overflow-hidden bg-white shadow-2xl sm:rounded-2xl border-slate-200">
+        <form onSubmit={handleSubmit} className="flex flex-col max-h-[85vh]">
+
+          {/* Header */}
+          <DialogHeader className="px-6 py-5 bg-slate-50/50 border-b border-slate-100">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-violet-100/80 flex items-center justify-center border border-violet-200/50 shadow-sm">
+                <Bot className="w-6 h-6 text-violet-600" />
               </div>
-              <div>
-                <DialogTitle className="text-xl">
+              <div className="space-y-1">
+                <DialogTitle className="text-xl font-semibold tracking-tight text-slate-900">
                   {mode === 'create' ? 'Create New Agent' : 'Edit Agent'}
                 </DialogTitle>
-                <DialogDescription>
-                  {mode === 'create' 
-                    ? 'Configure a new AI agent to participate in your workflows.' 
-                    : `Updating configuration for ${agent?.name}`}
+                <DialogDescription className="text-slate-500 font-medium">
+                  {mode === 'create'
+                    ? 'Configure the identity and capabilities of your new AI assistant.'
+                    : `Update configuration for ${agent?.name}`}
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
 
+          {/* Main Content Area */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-            <div className="px-6 pt-4 bg-white border-b border-gray-100">
-              <TabsList className="grid w-[240px] grid-cols-2">
-                <TabsTrigger value="basic">Basic Info</TabsTrigger>
-                <TabsTrigger value="config">Configuration</TabsTrigger>
+            <div className="px-6 pt-2 border-b border-slate-100 bg-white">
+              <TabsList className="bg-transparent space-x-6 w-full justify-start h-auto p-0">
+                <TabsTrigger
+                  value="basic"
+                  className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-violet-600 data-[state=active]:text-violet-700 rounded-none pb-3 pt-2 px-1 text-slate-500 font-medium"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Basic Identity
+                </TabsTrigger>
+                <TabsTrigger
+                  value="config"
+                  className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-violet-600 data-[state=active]:text-violet-700 rounded-none pb-3 pt-2 px-1 text-slate-500 font-medium"
+                >
+                  <Settings2 className="w-4 h-4 mr-2" />
+                  Capabilities & Model
+                </TabsTrigger>
               </TabsList>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 bg-white/50">
-              {/* ── Basic Info Tab ────────────────────────────────────── */}
-              <TabsContent value="basic" className="mt-0 space-y-5 outline-none">
-                <Field label="Agent Name" required>
-                  <input
-                    type="text"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder="e.g. DataAnalystAgent"
-                    required
-                    className={inputCls}
-                  />
-                </Field>
+            <ScrollArea className="flex-1 px-6 py-6 bg-slate-50/30">
 
-                <Field label="Description" required>
-                  <input
-                    type="text"
-                    value={form.description ?? ''}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    placeholder="One-line summary of what this agent does"
-                    required
-                    className={inputCls}
-                  />
-                </Field>
+              {/* ── Basic Info Tab ────────────────────────────────────── */}
+              <TabsContent value="basic" className="m-0 space-y-6 outline-none">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Field label="Agent Name" required>
+                    <input
+                      type="text"
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      placeholder="e.g. Data Analyst"
+                      required
+                      className={inputCls}
+                    />
+                  </Field>
+
+                  <Field label="Description" required>
+                    <input
+                      type="text"
+                      value={form.description ?? ''}
+                      onChange={(e) => setForm({ ...form, description: e.target.value })}
+                      placeholder="Short summary of responsibilities"
+                      required
+                      className={inputCls}
+                    />
+                  </Field>
+                </div>
 
                 <Field label="System Prompt (Role, Goal, Backstory)" required>
                   <textarea
                     value={form.system_prompt ?? ''}
                     onChange={(e) => setForm({ ...form, system_prompt: e.target.value })}
-                    placeholder="Bạn là một chuyên gia phân tích dữ liệu..."
+                    placeholder="You are an expert data analyst. Your primary goal is to..."
                     required
-                    rows={8}
+                    rows={10}
                     className={cn(inputCls, 'resize-y font-mono text-sm leading-relaxed')}
                   />
+                  <p className="mt-2 text-xs text-slate-400">
+                    This prompt defines the core behavior and constraints of the agent.
+                  </p>
                 </Field>
               </TabsContent>
 
-              {/* ── Configuration Tab (Tools & Models) ─────────────────── */}
-              <TabsContent value="config" className="mt-0 space-y-6 outline-none">
-                <div className="grid grid-cols-2 gap-6">
+              {/* ── Configuration Tab ─────────────────────────────────── */}
+              <TabsContent value="config" className="m-0 space-y-8 outline-none">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
                   <Field label="LLM Provider & Model">
                     <select
                       value={form.model ?? 'gemini-2.5-flash'}
@@ -214,15 +232,20 @@ export default function AgentFormModal({ open, onClose, agent }: AgentFormModalP
                     </select>
                   </Field>
 
-                  <Field label={`Creativity (Temperature: ${form.temperature?.toFixed(1)})`}>
+                  <Field label="Creativity Level">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-violet-600 bg-violet-50 px-2 py-0.5 rounded">
+                        Temperature: {form.temperature?.toFixed(1)}
+                      </span>
+                    </div>
                     <input
                       type="range"
                       min="0" max="2" step="0.1"
                       value={form.temperature ?? 1.0}
                       onChange={(e) => setForm({ ...form, temperature: parseFloat(e.target.value) })}
-                      className="w-full h-2 mt-3 accent-violet-600 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                      className="w-full h-1.5 mt-2 accent-violet-600 bg-slate-200 rounded-lg appearance-none cursor-pointer"
                     />
-                    <div className="flex justify-between text-[11px] text-gray-500 mt-2 font-medium">
+                    <div className="flex justify-between text-[11px] text-slate-400 mt-2 font-medium uppercase tracking-wider">
                       <span>Precise</span>
                       <span>Balanced</span>
                       <span>Creative</span>
@@ -231,51 +254,61 @@ export default function AgentFormModal({ open, onClose, agent }: AgentFormModalP
                 </div>
 
                 <div className="space-y-3">
-                  <Field label="Enabled Tools (Multi-select)" />
-                  <ScrollArea className="h-[220px] w-full rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                    <div className="flex flex-wrap gap-2.5">
-                      {ALL_TOOLS.map((tool) => {
-                        const selected = form.tools?.includes(tool.id)
-                        return (
-                          <Badge
-                            key={tool.id}
-                            variant="outline"
-                            className={cn(
-                              'cursor-pointer px-3 py-1.5 text-xs transition-all duration-200 border-dashed',
-                              selected 
-                                ? cn(tool.color, 'border-transparent border-solid shadow-sm scale-105') 
-                                : 'text-gray-500 bg-transparent hover:bg-gray-50 hover:border-gray-300'
-                            )}
-                            onClick={() => toggleTool(tool.id)}
-                          >
-                            {selected && <Check className="w-3.5 h-3.5 mr-1.5 opacity-70" />}
-                            {tool.label}
-                          </Badge>
-                        )
-                      })}
-                    </div>
-                  </ScrollArea>
-                  <p className="text-xs text-gray-400 font-medium px-1">
-                    Select exactly the tools this agent needs. Too many tools can confuse the LLM.
+                  <Field label="Enabled Tools" />
+                  <p className="text-sm text-slate-500 mb-4">
+                    Select the tools this agent needs. Keep it minimal to avoid confusing the LLM.
                   </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {ALL_TOOLS.map((tool) => {
+                      const selected = form.tools?.includes(tool.id)
+                      return (
+                        <div
+                          key={tool.id}
+                          onClick={() => toggleTool(tool.id)}
+                          className={cn(
+                            'flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 select-none group',
+                            selected
+                              ? 'bg-violet-50 border-violet-200 ring-1 ring-violet-200 shadow-sm'
+                              : 'bg-white border-slate-200 hover:border-violet-300 hover:bg-slate-50'
+                          )}
+                        >
+                          <div className={cn(
+                            'w-5 h-5 rounded-md flex items-center justify-center mr-3 transition-colors',
+                            selected ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-violet-100'
+                          )}>
+                            {selected && <Check className="w-3.5 h-3.5" />}
+                          </div>
+                          <span className={cn(
+                            'text-sm font-medium',
+                            selected ? 'text-violet-900' : 'text-slate-600'
+                          )}>
+                            {tool.label}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               </TabsContent>
-            </div>
+
+            </ScrollArea>
           </Tabs>
 
-          <DialogFooter className="p-4 bg-white border-t border-gray-100 sm:justify-end">
+          {/* Footer */}
+          <DialogFooter className="px-6 py-4 bg-white border-t border-slate-100 flex flex-row justify-end gap-3 sm:gap-0">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
               disabled={isBusy}
+              className="text-slate-600 border-slate-200 hover:bg-slate-50"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={isBusy || !form.name.trim() || !form.system_prompt?.trim()}
-              className="bg-violet-600 hover:bg-violet-700 text-white min-w-[120px]"
+              className="bg-violet-600 hover:bg-violet-700 text-white min-w-[140px] shadow-sm shadow-violet-200"
             >
               {isBusy && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {mode === 'create' ? 'Create Agent' : 'Save Changes'}
@@ -288,16 +321,16 @@ export default function AgentFormModal({ open, onClose, agent }: AgentFormModalP
   )
 }
 
-// ── Helper ────────────────────────────────────────────────────────────────
+// ── Shared UI Helpers ─────────────────────────────────────────────────────
 
-const inputCls = 'w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-violet-400 transition-shadow'
+const inputCls = 'w-full px-3.5 py-2.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all duration-200'
 
 function Field({ label, required, children }: { label: string; required?: boolean; children?: React.ReactNode }) {
   return (
-    <div>
-      <label className="block text-sm font-semibold text-gray-700 mb-2">
+    <div className="flex flex-col w-full">
+      <label className="text-sm font-semibold text-slate-700 mb-2.5 flex items-center">
         {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
+        {required && <span className="text-red-500 ml-1 text-lg leading-none">*</span>}
       </label>
       {children}
     </div>

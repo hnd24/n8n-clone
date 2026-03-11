@@ -81,16 +81,16 @@ function WorkflowsTab({
       {/* List Header Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
         <Input
-          placeholder="Tìm workflow theo tên..."
+          placeholder="Search workflows by name..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="xl:w-[280px]"
         />
         <Tabs value={filterTab} onValueChange={setFilterTab}>
           <TabsList>
-            <TabsTrigger value="all">Tất cả</TabsTrigger>
-            <TabsTrigger value="public">Công khai</TabsTrigger>
-            <TabsTrigger value="private">Cá nhân</TabsTrigger>
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="public">Public</TabsTrigger>
+            <TabsTrigger value="private">Private</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
@@ -98,7 +98,7 @@ function WorkflowsTab({
       {/* List Body */}
       <div className="flex-1 overflow-y-auto space-y-3 pb-4">
         {filteredWorkflows.length === 0 ? (
-          <div className="text-center py-12 text-gray-400">Không tìm thấy workflow nào phù hợp.</div>
+          <div className="text-center py-12 text-gray-400">No matching workflows found.</div>
         ) : (
           filteredWorkflows.map((wf) => (
             <div
