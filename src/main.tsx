@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { Toaster } from 'sonner'
 import './index.css'
+import './globals.css'
 import App from './App.tsx'
 
 const queryClient = new QueryClient({
