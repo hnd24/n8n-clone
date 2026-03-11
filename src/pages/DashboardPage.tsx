@@ -4,7 +4,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useWorkflowStore } from '@/store/workflowStore'
 import { useSocketStore } from '@/store/socketStore'
 import { useSocket, initSocket } from '@/hooks/useSocket'
-import { useWorkflows, useCreateWorkflow } from '@/hooks/queries/useWorkflowQueries'
+import { useWorkflows, useCreateWorkflow, useUpdateWorkflow, useDeleteWorkflow } from '@/hooks/queries/useWorkflowQueries'
 import { useAgents } from '@/hooks/queries/useAgentQueries'
 import { updateAgentApi } from '@/api/agents'
 import AgentSidebar from '@/components/sidebar/AgentSidebar'
@@ -12,7 +12,7 @@ import WorkflowCanvas from '@/components/canvas/WorkflowCanvas'
 import StreamingPanel from '@/components/streaming/StreamingPanel'
 import RunWorkflowModal from '@/components/streaming/RunWorkflowModal'
 import type { Workflow, Agent } from '@/types'
-import { Workflow as WorkflowIcon, LogOut, Play, ChevronLeft, ChevronRight, GitBranch, Loader2 } from 'lucide-react'
+import { Workflow as WorkflowIcon, LogOut, Play, ChevronLeft, ChevronRight, GitBranch, Loader2, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // ─── Workflows Tab ────────────────────────────────────────────────────────
@@ -23,6 +23,7 @@ function WorkflowsTab({
 }) {
   const { data: workflows = [], isLoading: wfLoading } = useWorkflows()
   const { data: agents = [], isLoading: agentsLoading } = useAgents()
+  const deleteWorkflow = useDeleteWorkflow()
 
   const agentMap = new Map<string, string>(agents.map((a) => [a.id, a.name]))
   const isLoading = wfLoading || agentsLoading
@@ -60,13 +61,25 @@ function WorkflowsTab({
               </h3>
               <p className="text-[10px] text-gray-400 font-mono mt-0.5">{wf.id}</p>
             </div>
-            <div className="flex gap-1.5 flex-shrink-0">
+            <div className="flex gap-1.5 flex-shrink-0 items-center">
               {wf.is_public && (
                 <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">public</span>
               )}
               <span className="text-[10px] bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded-full">
                 {wf.steps?.length ?? 0} steps
               </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (confirm('Bạn có chắc muốn xoá workflow này?')) {
+                    deleteWorkflow.mutateAsync(wf.id)
+                  }
+                }}
+                className="ml-2 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100"
+                title="Delete Workflow"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
 
@@ -100,6 +113,7 @@ export default function DashboardPage() {
   const { blocks } = useSocketStore()
   const { emitWorkflowChat } = useSocket()
   const createWorkflow = useCreateWorkflow()
+  const updateWorkflow = useUpdateWorkflow()
   const navigate = useNavigate()
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -177,13 +191,22 @@ export default function DashboardPage() {
     if (steps.length === 0) return
 
     try {
-      const wf = await createWorkflow.mutateAsync({
-        name: `Workflow ${new Date().toLocaleTimeString()}`,
-        steps,
-        is_public: false,
-      })
-      setSavedWorkflow(wf)
-      console.log('[Dashboard] Workflow saved:', wf.id)
+      if (savedWorkflow) {
+        const wf = await updateWorkflow.mutateAsync({
+          id: savedWorkflow.id,
+          payload: { steps, name: savedWorkflow.name }
+        })
+        setSavedWorkflow(wf)
+        console.log('[Dashboard] Workflow updated:', wf.id)
+      } else {
+        const wf = await createWorkflow.mutateAsync({
+          name: `Workflow ${new Date().toLocaleTimeString()}`,
+          steps,
+          is_public: false,
+        })
+        setSavedWorkflow(wf)
+        console.log('[Dashboard] Workflow saved:', wf.id)
+      }
     } catch (err) {
       console.error('[Dashboard] Save workflow failed:', err)
     }
