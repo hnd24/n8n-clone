@@ -25,6 +25,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -377,18 +378,30 @@ export default function DashboardPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* Left Sidebar */}
         <div className={cn(
-          'relative flex-shrink-0 transition-all duration-300 ease-in-out',
+          'relative flex-shrink-0 transition-all duration-300 ease-in-out h-full z-20',
           sidebarCollapsed ? 'w-0' : 'w-64'
         )}>
-          {!sidebarCollapsed && <AgentSidebar />}
-          <button
-            className="absolute top-3 -right-3 z-20 w-6 h-6 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50 transition-colors"
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          >
-            {sidebarCollapsed
-              ? <ChevronRight className="w-3 h-3 text-gray-500" />
-              : <ChevronLeft className="w-3 h-3 text-gray-500" />}
-          </button>
+          <div className="w-full h-full overflow-hidden border-r border-gray-200 bg-white">
+            <div className="w-64 h-full">
+              <AgentSidebar />
+            </div>
+          </div>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="absolute top-1/2 -translate-y-1/2 -right-4 z-30 h-16 w-4 p-0 rounded-l-none rounded-r-xl bg-background/80 backdrop-blur-sm shadow-md border-gray-200 border-l-0 text-gray-500 hover:text-violet-600 border-y-gray-200"
+                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                >
+                  <ChevronLeft className={cn("w-3 h-3 transition-transform duration-300", sidebarCollapsed && "rotate-180")} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                {sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
         {/* Center Content + Tabs */}
@@ -434,18 +447,30 @@ export default function DashboardPage() {
 
         {/* Right Streaming Panel */}
         <div className={cn(
-          'relative flex-shrink-0 transition-all duration-300 ease-in-out',
+          'relative flex-shrink-0 transition-all duration-300 ease-in-out h-full z-20',
           panelCollapsed ? 'w-0' : 'w-80 xl:w-96'
         )}>
-          {!panelCollapsed && <StreamingPanel className="h-full" />}
-          <button
-            className="absolute top-3 -left-3 z-20 w-6 h-6 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50 transition-colors"
-            onClick={() => setPanelCollapsed(!panelCollapsed)}
-          >
-            {panelCollapsed
-              ? <ChevronLeft className="w-3 h-3 text-gray-500" />
-              : <ChevronRight className="w-3 h-3 text-gray-500" />}
-          </button>
+          <div className="w-full h-full overflow-hidden border-l border-gray-200 bg-white">
+            <div className="w-80 xl:w-96 h-full">
+              <StreamingPanel className="h-full border-none" />
+            </div>
+          </div>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="absolute top-1/2 -translate-y-1/2 -left-4 z-30 h-16 w-4 p-0 rounded-r-none rounded-l-xl bg-background/80 backdrop-blur-sm shadow-md border-gray-200 border-r-0 text-gray-500 hover:text-violet-600 border-y-gray-200"
+                  onClick={() => setPanelCollapsed(!panelCollapsed)}
+                >
+                  <ChevronRight className={cn("w-3 h-3 transition-transform duration-300", panelCollapsed && "rotate-180")} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                {panelCollapsed ? "Expand Live Output" : "Collapse Live Output"}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 

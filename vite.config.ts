@@ -19,4 +19,13 @@ export default defineConfig({
       },
     },
   },
+  optimizeDeps: {
+    include: [
+      'radix-ui',
+      '@radix-ui/react-tooltip',
+      '@radix-ui/react-slot',
+      '@radix-ui/react-alert-dialog',
+      'lucide-react'
+    ]
+  }
 })
