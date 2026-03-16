@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { User, AuthResponse } from '@/types'
 import { loginApi } from '@/api/auth'
+import { isAxiosError } from 'axios'
 
 interface AuthState {
   user: User | null
@@ -50,7 +51,20 @@ export const useAuthStore = create<AuthState>()(
             error: null,
           })
         } catch (err: unknown) {
-          const message = err instanceof Error ? err.message : 'Login failed'
+          let message = 'Login failed'
+
+          if (isAxiosError(err)) {
+            message =
+              err.response?.data?.message ??
+              err.response?.data?.detail ??
+              err.message ??
+              'Login failed'
+          } else if (err instanceof Error) {
+            message = err.message
+          }
+
+
+
           set({ isLoading: false, error: message, isAuthenticated: false })
           throw err
         }

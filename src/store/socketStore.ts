@@ -28,6 +28,7 @@ export interface NodeBlock {
   text: string          // accumulated chunk text
   status: NodeBlockStatus
   completedAt?: number
+  role?: 'user' | 'agent' | 'system'
 }
 
 /** Final workflow result */
@@ -54,6 +55,8 @@ interface SocketState {
 
   /** node_started → open a new block */
   openNodeBlock: (nodeId: string, turn: number) => void
+  /** Adds a user message block to the chat history */
+  addUserMessage: (text: string) => void
   /** workflow_agent_started → mark block as typing */
   setAgentTyping: (nodeId: string, agentName: string) => void
   /** workflow_agent_chunk → append text */
@@ -134,10 +137,26 @@ export const useSocketStore = create<SocketState>((set, get) => ({
           turn,
           text: '',
           status: 'pending' as NodeBlockStatus,
+          role: 'agent',
         },
       ],
     }))
   },
+
+  addUserMessage: (text) => set((s) => ({
+    blocks: [
+      ...s.blocks,
+      {
+        nodeId: `user-${Date.now()}`,
+        agentName: 'User',
+        turn: 0,
+        text,
+        status: 'done' as NodeBlockStatus,
+        role: 'user',
+        completedAt: Date.now(),
+      }
+    ]
+  })),
 
   setAgentTyping: (nodeId, agentName) => {
     const resolved = resolveNodeId(nodeId, get().blocks)

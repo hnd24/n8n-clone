@@ -98,7 +98,7 @@ export default function AgentSidebar() {
               <button
                 onClick={() => refetch()}
                 title="Refresh"
-                className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-violet-600 transition-colors"
+                className="p-1.5 rounded-md hover:bg-gray-50 text-gray-400 hover:text-violet-600 transition-colors border border-transparent hover:border-gray-200"
               >
                 <RefreshCw className={cn('w-3.5 h-3.5', isLoading && 'animate-spin')} />
               </button>

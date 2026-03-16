@@ -154,7 +154,7 @@ export function initSocket(): Socket {
 export const useSocket = () => {
   const emitWorkflowChat = useCallback((workflowId: string, message: string) => {
     console.log('[Socket.IO] emit workflow_chat', { workflow_id: workflowId, message })
-    useSocketStore.getState().clearLog()
+    useSocketStore.getState().addUserMessage(message)
     useSocketStore.getState().setStreaming(true)
 
     const socket = initSocket()
@@ -174,7 +174,7 @@ export const useSocket = () => {
 
   const emitAgentChat = useCallback((agentId: string, message: string) => {
     console.log('[Socket.IO] emit agent_chat', { agent_id: agentId, message })
-    useSocketStore.getState().clearLog()
+    useSocketStore.getState().addUserMessage(message)
     useSocketStore.getState().setStreaming(true)
 
     const socket = initSocket()

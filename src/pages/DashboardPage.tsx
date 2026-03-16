@@ -10,7 +10,6 @@ import { updateAgentApi } from '@/api/agents'
 import AgentSidebar from '@/components/sidebar/AgentSidebar'
 import WorkflowCanvas from '@/components/canvas/WorkflowCanvas'
 import StreamingPanel from '@/components/streaming/StreamingPanel'
-import RunWorkflowModal from '@/components/streaming/RunWorkflowModal'
 import type { Workflow, Agent } from '@/types'
 import {
   AlertDialog,
@@ -29,7 +28,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { ChevronLeft, ChevronRight, GitBranch, Loader2, LogOut, Play, Trash2, WorkflowIcon } from 'lucide-react'
+import { ChevronLeft, ChevronRight, GitBranch, Loader2, LogOut, Play, RefreshCw, Search, Trash2, WorkflowIcon, Terminal } from 'lucide-react'
 
 // ─── Workflows Tab ────────────────────────────────────────────────────────
 function WorkflowsTab({
@@ -37,7 +36,7 @@ function WorkflowsTab({
 }: {
   onLoadWorkflow: (wf: Workflow, agents: Agent[]) => void
 }) {
-  const { data: workflows = [], isLoading: wfLoading } = useWorkflows()
+  const { data: workflows = [], isLoading: wfLoading, refetch } = useWorkflows()
   const { data: agents = [], isLoading: agentsLoading } = useAgents()
   const deleteWorkflowMutation = useDeleteWorkflow()
 
@@ -48,7 +47,7 @@ function WorkflowsTab({
   const agentMap = new Map<string, string>(agents.map((a) => [a.id, a.name]))
   const isLoading = wfLoading || agentsLoading
 
-  if (isLoading) {
+  if (isLoading && workflows.length === 0) {
     return (
       <div className="flex items-center justify-center h-32 text-gray-400">
         <Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading workflows...
@@ -62,6 +61,15 @@ function WorkflowsTab({
         <GitBranch className="w-10 h-10 mx-auto mb-3 text-gray-200" />
         <p className="text-sm text-gray-400">No workflows yet</p>
         <p className="text-xs mt-1 text-gray-300">Build one on the Canvas tab and save it</p>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => refetch()} 
+          className="mt-4 text-xs h-7 gap-1.5"
+        >
+          <RefreshCw className={cn("w-3.5 h-3.5", wfLoading && "animate-spin")} />
+          Refresh
+        </Button>
       </div>
     )
   }
@@ -81,12 +89,26 @@ function WorkflowsTab({
     <div className="p-4 flex flex-col h-full max-w-3xl mx-auto space-y-4">
       {/* List Header Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
-        <Input
-          placeholder="Search workflows by name..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="xl:w-[280px]"
-        />
+        <div className="flex items-center gap-2 flex-1">
+          <div className="relative flex-1 max-w-[280px]">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+            <Input
+              placeholder="Search workflows..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-8 pl-8 text-xs bg-gray-50 border-gray-200 focus:ring-violet-400 focus:border-violet-400"
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            title="Refresh workflows"
+            className="h-8 w-8 p-0 border-gray-200 text-gray-500 hover:text-violet-600 hover:bg-violet-50"
+          >
+            <RefreshCw className={cn("w-4 h-4", wfLoading && "animate-spin")} />
+          </Button>
+        </div>
         <Tabs value={filterTab} onValueChange={setFilterTab}>
           <TabsList>
             <TabsTrigger value="all">All</TabsTrigger>
@@ -202,7 +224,6 @@ export default function DashboardPage() {
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [panelCollapsed, setPanelCollapsed] = useState(false)
-  const [runModalOpen, setRunModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'canvas' | 'workflows'>('canvas')
   // activeNodeIds / completedNodeIds are now derived from blocks (see below)
 
@@ -346,11 +367,11 @@ export default function DashboardPage() {
           {nodes.length > 0 && (
             <button
               id="header-run-btn"
-              onClick={() => setRunModalOpen(true)}
+              onClick={() => setPanelCollapsed(false)}
               className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white transition-colors shadow-sm"
             >
-              <Play className="w-3 h-3" />
-              Run
+              <Terminal className="w-3 h-3" />
+              Chat
             </button>
           )}
           <div className="flex items-center gap-2 pl-2 border-l border-gray-200">
@@ -435,7 +456,7 @@ export default function DashboardPage() {
           <div className="flex-1 overflow-hidden">
             {activeTab === 'canvas' ? (
               <WorkflowCanvas
-                onRunWorkflow={() => setRunModalOpen(true)}
+                onRunWorkflow={() => setPanelCollapsed(false)}
                 activeNodeIds={activeNodeIds}
                 completedNodeIds={completedNodeIds}
               />
@@ -448,11 +469,11 @@ export default function DashboardPage() {
         {/* Right Streaming Panel */}
         <div className={cn(
           'relative flex-shrink-0 transition-all duration-300 ease-in-out h-full z-20',
-          panelCollapsed ? 'w-0' : 'w-80 xl:w-96'
+          panelCollapsed ? 'w-0' : 'w-80 xl:w-[400px]'
         )}>
-          <div className="w-full h-full overflow-hidden border-l border-gray-200 bg-white">
-            <div className="w-80 xl:w-96 h-full">
-              <StreamingPanel className="h-full border-none" />
+          <div className="w-full h-full overflow-hidden border-l border-gray-200 bg-white shadow-xl lg:shadow-none">
+            <div className="w-80 xl:w-[400px] h-full">
+              <StreamingPanel className="h-full border-none" onSendMessage={handleRunWorkflow} />
             </div>
           </div>
           <TooltipProvider delayDuration={300}>
@@ -473,12 +494,6 @@ export default function DashboardPage() {
           </TooltipProvider>
         </div>
       </div>
-
-      <RunWorkflowModal
-        open={runModalOpen}
-        onClose={() => setRunModalOpen(false)}
-        onRun={handleRunWorkflow}
-      />
     </div>
   )
 }

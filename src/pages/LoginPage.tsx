@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Loader2, Workflow, Zap } from 'lucide-react'
+import { isAxiosError } from 'axios'
 
 export default function LoginPage() {
   const { isAuthenticated, login, isLoading, error } = useAuthStore()
@@ -22,7 +23,16 @@ export default function LoginPage() {
     try {
       await login(email, password)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Login failed. Please check your credentials.'
+      let msg = 'Login failed. Please check your credentials.'
+      if (isAxiosError(err)) {
+        msg = 
+          err.response?.data?.message ?? 
+          err.response?.data?.detail ?? 
+          err.message ?? 
+          msg
+      } else if (err instanceof Error) {
+        msg = err.message
+      }
       setLocalError(msg)
     }
   }

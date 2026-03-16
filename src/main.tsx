@@ -22,7 +22,7 @@ createRoot(document.getElementById('root')!).render(
     <App />
     <Toaster position="bottom-right" richColors closeButton />
     {/* DevTools only loads in development builds */}
-    <ReactQueryDevtools initialIsOpen={false} />
+    {/* <ReactQueryDevtools initialIsOpen={false} /> */}
   </QueryClientProvider>
 )
 
